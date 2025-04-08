@@ -1,247 +1,151 @@
 <template>
-    <div class="schedule-container">
-      <div class="header">
-        <h2>{{ currentMonth }}月{{ currentMonthName }}</h2>
-        <button @click="toggleView">
-          切换至 {{ isCalendarView ? "列表" : "日历" }} 视图
-        </button>
-      </div>
-      <div v-if="isCalendarView" class="weekdays">
-        <div v-for="day in weekdays" :key="day" class="weekday">{{ day }}</div>
-      </div>
-      <div v-if="isCalendarView" class="calendar-view">
-        <div v-for="n in firstDayOffset" :key="'empty'+n" class="day empty" ></div>
-        <div v-for="day in monthDays" :key="day.date"
-             :class="['day', { past: day.isPast }]" 
-             @click="showSchedule(day.date)">
-          <div v-if="day.morning" class="morning-slot"></div>
-          <div v-if="day.afternoon" class="afternoon-slot"></div>
-          {{ day.date }}
-        </div>
-      </div>
-      
-      <div v-else class="list-view">
-        <table>
-          <thead>
-            <tr>
-              <th>日期</th>
-              <th>时间</th>
-              <th>是否完成</th>
-              <th>请假申请</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in scheduleList" :key="item.date">
-              <td>{{ item.date }}</td>
-              <td>{{ item.time }}</td>
-              <td>
-                <span v-if="item.isCompleted" class="completed">✔</span>
-                <span v-else class="pending">○</span>
-              </td>
-              <td>
-                <button v-if="!item.isCompleted && !item.leaveApplied"
-                        @click="applyLeave(item)">
-                  申请请假
-                </button>
-                <span v-else-if="item.leaveApplied">申请审核中</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-  
-      <div v-if="showLeaveModal" class="modal">
-        <h3>请假申请</h3>
-        <textarea v-model="leaveReason" placeholder="请填写请假理由"></textarea>
-        <button @click="submitLeave">提交</button>
-        <button @click="showLeaveModal = false">取消</button>
+  <div class="messages-container">
+    <!-- 左侧消息列表 -->
+    <div class="sidebar">
+      <div 
+        v-for="contact in contacts" 
+        :key="contact.id" 
+        class="contact-item" 
+        :class="{ active: activeContact && activeContact.id === contact.id }"
+        @click="selectContact(contact)">
+        <div class="contact-name">{{ contact.name }}</div>
+        <div class="last-message">{{ getLastMessage(contact) }}</div>
       </div>
     </div>
-  </template>
-  
-  <script>
-  export default {
-    data() {
-      return {
-        isCalendarView: true,
-        currentMonth:new Date().getMonth()+1,
-        currentMonthName:new Intl.DateTimeFormat("en",{month:"long"}).format(new Date()),
-        weekdays:["Mon","Tue","Wed","Thur","Fri","Sat","Sun"],
-        monthDays: [],
-        firstDayOffset:0,
-        scheduleList: [],
-        showLeaveModal: false,
-        leaveReason: "",
-        currentLeaveItem: null
-      };
+    
+    <!-- 右侧聊天窗口 -->
+    <div class="chat-window" v-if="activeContact">
+      <div class="chat-messages">
+        <div 
+          v-for="(message, index) in activeContact.messages" 
+          :key="index" 
+          :class="['message', message.sender === 'me' ? 'sent' : 'received']">
+          {{ message.text }}
+        </div>
+      </div>
+      <div class="chat-input">
+        <input v-model="newMessage" @keyup.enter="sendMessage" placeholder="输入消息..." />
+        <button @click="sendMessage">发送</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      contacts: [
+        { id: 1, name: '管理员1', messages: [
+          { sender: 'them', text: '请检查本月报告' },
+          { sender: 'me', text: '好的，我会查看。' }
+        ] },
+        { id: 3, name: '管理员2', messages: [
+          { sender: 'them', text: '4-16上午排班请假审批已通过' },
+        ] },
+        { id: 2, name: '督导1', messages: [
+          { sender: 'them', text: '有时间开个会吗？' },
+          { sender: 'me', text: '可以的，明天上午合适吗？' }
+        ] }
+      ],
+      activeContact: null,
+      newMessage: ''
+    };
+  },
+  methods: {
+    selectContact(contact) {
+      this.activeContact = contact;
     },
-    created(){
-      this.generateMonthData();
-    },
-    methods: {
-      toggleView() {
-        this.isCalendarView = !this.isCalendarView;
-      },
-      showSchedule(date) {
-        this.isCalendarView = false;
+    sendMessage() {
+      if (this.newMessage.trim() && this.activeContact) {
+        this.activeContact.messages.push({ sender: 'me', text: this.newMessage.trim() });
+        this.newMessage = '';
         this.$nextTick(() => {
-          const target = this.scheduleList.find(item => item.date === date);
-          if (target) {
-            document.querySelector(`tr[data-date="${date}"]`).scrollIntoView();
-          }
+          const chatMessages = this.$el.querySelector('.chat-messages');
+          chatMessages.scrollTop = chatMessages.scrollHeight;
         });
-      },
-      applyLeave(item) {
-        this.currentLeaveItem = item;
-        this.showLeaveModal = true;
-      },
-      submitLeave() {
-        if (!this.leaveReason.trim()) {
-          alert("请填写请假理由");
-          return;
-        }
-        this.currentLeaveItem.leaveApplied = true;
-        this.showLeaveModal = false;
-        this.leaveReason = "";
-      },
-      generateMonthData() {
-        const year = new Date().getFullYear();
-        const month = new Date().getMonth();
-        const days = new Date(year,month+1,0).getDate();
-
-        let firstDay = new Date(year,month,1).getDay();
-        this.firstDayOffset = (firstDay === 0?6:firstDay-1);
-
-        this.monthDays=Array.from({length:days},(_,i)=>({
-          date:`${year}-${month+1}-${i+1}`,
-          day:i+1,
-          isPast:i+1<new Date().getDate(),
-          morning:Math.random()>0.5,
-          afternoon:Math.random()>0.5
-        }));
-        this.scheduleList=this.monthDays.map(day=>({
-          date:`${day.day}日`,
-          time:day.morning&&day.afternoon?"上午/下午":day.morning?"上午":"下午",
-          isCompleted:day.isPast,
-          leaveApplied:false
-        }));
       }
+    },
+    getLastMessage(contact) {
+      const lastMessage = contact.messages.length > 0 ? contact.messages[contact.messages.length - 1].text : '无消息';
+      return lastMessage;
     }
-  };
-  </script>
-  
-  <style scoped>
-  .schedule-container {
-    width: 100%;
-    height: 100%;
-    flex-direction:column;
-    padding: 20px;
-    background-color: white;
-    overflow-x: hidden;
-    overflow-y: auto;
   }
-  
-  .header {
-    text-align: right;
-    margin-bottom: 10px;
-  }
-  
-  button {
-    padding: 5px 10px;
-    background-color: #8B4513;
-    color: white;
-    border: none;
-    cursor: pointer;
-  }
-  
-  .weekdays{
-    display: grid;
-    grid-template-columns: repeat(7,1fr);
-    gap:5px;
-    text-align: center;
-    font-weight: bold;
-    color: #8B4513;
-    margin-bottom: 5px;
-    width:100%;
-  }
-  .weekdays div{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 40px;
-  }
-  .calendar-view {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 5px;
-    width:100%;
-    padding: 0;
-    margin:0 auto;
-  }
-  
-  .day {
-    width: 80px;
-    height: 80px;
-    border: 1px solid #ccc;
-    text-align: center;
-    position: relative;
-    cursor: pointer;
-    display:flex;
+};
+</script>
 
-    flex-direction: column;
-  }
-  
-  .day.past {
-    background: #ddd;
-  }
-  
-  .morning-slot {
-    position: absolute;
-    top: 27px;
-    left: 50%;
-    width: 30px;
-    height: 5px;
-    background: #FFE4B5;
-    transform: translateX(-50%);
-  }
-  
-  .afternoon-slot {
-    position: absolute;
-    bottom: 27px;
-    left: 50%;
-    width: 30px;
-    height: 5px;
-    background: #8B4513;
-    transform: translateX(-50%);
-  }
-  
-  .list-view table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  
-  .list-view th, .list-view td {
-    border: 1px solid #ccc;
-    padding: 10px;
-    text-align: center;
-  }
-  
-  .completed {
-    color: green;
-  }
-  
-  .pending {
-    color: gray;
-  }
-  
-  .modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    padding: 20px;
-    border: 1px solid #ccc;
-  }
-  </style>
-  
+<style scoped>
+.messages-container {
+  display: flex;
+  height: 100vh;
+}
+.sidebar {
+  width: 250px;
+  background: #f4f4f4;
+  border-right: 1px solid #ddd;
+  overflow-y: auto;
+}
+.contact-item {
+  padding: 15px;
+  border-bottom: 1px solid #ddd;
+  cursor: pointer;
+}
+.contact-item.active {
+  background: #8B4513;
+  color: white;
+}
+.contact-name {
+  font-weight: bold;
+}
+.last-message {
+  font-size: 14px;
+  color: gray;
+}
+.chat-window {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.chat-messages {
+  flex: 1;
+  padding: 15px;
+  overflow-y: auto;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+.message {
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 10px;
+  max-width: 70%;
+  word-wrap: break-word;
+}
+.sent {
+  background: #8B4513;
+  color: white;
+  align-self: flex-end;
+}
+.received {
+  background: #eee;
+  align-self: flex-start;
+}
+.chat-input {
+  display: flex;
+  padding: 10px;
+  border-top: 1px solid #ddd;
+  background: #fff;
+}
+.chat-input input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+}
+.chat-input button {
+  background: #8B4513;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  cursor: pointer;
+}
+</style>

@@ -1,247 +1,99 @@
 <template>
-    <div class="schedule-container">
-      <div class="header">
-        <h2>{{ currentMonth }}月{{ currentMonthName }}</h2>
-        <button @click="toggleView">
-          切换至 {{ isCalendarView ? "列表" : "日历" }} 视图
+  <div class="appointment-container">
+    <div class="header">
+      <button :class="{ active: currentTab === 'appointment' }" @click="currentTab = 'appointment'">预约咨询</button>
+      <button :class="{ active: currentTab === 'realtime' }" @click="currentTab = 'realtime'">实时咨询</button>
+    </div>
+    
+    <div class="consultation-list">
+      <div v-for="item in filteredConsultations" :key="item.id" class="consultation-card">
+        <img :src="item.avatar" alt="头像" class="avatar" />
+        <div class="info">
+          <p>ID: {{ item.visitorId }}</p>
+          <p>时间: {{ formatTime(item.startTime) }} - {{ formatTime(item.endTime) }}</p>
+        </div>
+        <button 
+          :disabled="!canEnterSession(item)" 
+          :class="{ 'active-button': canEnterSession(item) }"
+          @click="enterSession(item)">
+          进入会话
         </button>
       </div>
-      <div v-if="isCalendarView" class="weekdays">
-        <div v-for="day in weekdays" :key="day" class="weekday">{{ day }}</div>
-      </div>
-      <div v-if="isCalendarView" class="calendar-view">
-        <div v-for="n in firstDayOffset" :key="'empty'+n" class="day empty" ></div>
-        <div v-for="day in monthDays" :key="day.date"
-             :class="['day', { past: day.isPast }]" 
-             @click="showSchedule(day.date)">
-          <div v-if="day.morning" class="morning-slot"></div>
-          <div v-if="day.afternoon" class="afternoon-slot"></div>
-          {{ day.date }}
-        </div>
-      </div>
-      
-      <div v-else class="list-view">
-        <table>
-          <thead>
-            <tr>
-              <th>日期</th>
-              <th>时间</th>
-              <th>是否完成</th>
-              <th>请假申请</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in scheduleList" :key="item.date">
-              <td>{{ item.date }}</td>
-              <td>{{ item.time }}</td>
-              <td>
-                <span v-if="item.isCompleted" class="completed">✔</span>
-                <span v-else class="pending">○</span>
-              </td>
-              <td>
-                <button v-if="!item.isCompleted && !item.leaveApplied"
-                        @click="applyLeave(item)">
-                  申请请假
-                </button>
-                <span v-else-if="item.leaveApplied">申请审核中</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-  
-      <div v-if="showLeaveModal" class="modal">
-        <h3>请假申请</h3>
-        <textarea v-model="leaveReason" placeholder="请填写请假理由"></textarea>
-        <button @click="submitLeave">提交</button>
-        <button @click="showLeaveModal = false">取消</button>
-      </div>
     </div>
-  </template>
-  
-  <script>
-  export default {
-    data() {
-      return {
-        isCalendarView: true,
-        currentMonth:new Date().getMonth()+1,
-        currentMonthName:new Intl.DateTimeFormat("en",{month:"long"}).format(new Date()),
-        weekdays:["Mon","Tue","Wed","Thur","Fri","Sat","Sun"],
-        monthDays: [],
-        firstDayOffset:0,
-        scheduleList: [],
-        showLeaveModal: false,
-        leaveReason: "",
-        currentLeaveItem: null
-      };
-    },
-    created(){
-      this.generateMonthData();
-    },
-    methods: {
-      toggleView() {
-        this.isCalendarView = !this.isCalendarView;
-      },
-      showSchedule(date) {
-        this.isCalendarView = false;
-        this.$nextTick(() => {
-          const target = this.scheduleList.find(item => item.date === date);
-          if (target) {
-            document.querySelector(`tr[data-date="${date}"]`).scrollIntoView();
-          }
-        });
-      },
-      applyLeave(item) {
-        this.currentLeaveItem = item;
-        this.showLeaveModal = true;
-      },
-      submitLeave() {
-        if (!this.leaveReason.trim()) {
-          alert("请填写请假理由");
-          return;
-        }
-        this.currentLeaveItem.leaveApplied = true;
-        this.showLeaveModal = false;
-        this.leaveReason = "";
-      },
-      generateMonthData() {
-        const year = new Date().getFullYear();
-        const month = new Date().getMonth();
-        const days = new Date(year,month+1,0).getDate();
+  </div>
+</template>
 
-        let firstDay = new Date(year,month,1).getDay();
-        this.firstDayOffset = (firstDay === 0?6:firstDay-1);
-
-        this.monthDays=Array.from({length:days},(_,i)=>({
-          date:`${year}-${month+1}-${i+1}`,
-          day:i+1,
-          isPast:i+1<new Date().getDate(),
-          morning:Math.random()>0.5,
-          afternoon:Math.random()>0.5
-        }));
-        this.scheduleList=this.monthDays.map(day=>({
-          date:`${day.day}日`,
-          time:day.morning&&day.afternoon?"上午/下午":day.morning?"上午":"下午",
-          isCompleted:day.isPast,
-          leaveApplied:false
-        }));
-      }
+<script>
+export default {
+  data() {
+    return {
+      currentTab: 'appointment',
+      consultations: [
+        // 示例数据
+        { id: 1, visitorId: '1001', avatar: 'path/to/avatar1.jpg', startTime: '2025-04-08 14:00', endTime: '2025-04-08 15:00', type: 'appointment' },
+        { id: 2, visitorId: '1002', avatar: 'path/to/avatar2.jpg', startTime: '2025-04-08 16:00', endTime: '2025-04-08 16:30', type: 'realtime' }
+      ]
+    };
+  },
+  computed: {
+    filteredConsultations() {
+      return this.consultations.filter(item => item.type === this.currentTab);
     }
-  };
-  </script>
-  
-  <style scoped>
-  .schedule-container {
-    width: 100%;
-    height: 100%;
-    flex-direction:column;
-    padding: 20px;
-    background-color: white;
-    overflow-x: hidden;
-    overflow-y: auto;
+  },
+  methods: {
+    formatTime(datetime) {
+      return datetime.replace(' ', ' ');
+    },
+    canEnterSession(item) {
+      if (this.currentTab === 'realtime') return true;
+      const now = new Date();
+      const startTime = new Date(item.startTime);
+      return now >= startTime;
+    },
+    enterSession(item) {
+      this.$router.push({ path: '/views/Chat.vue', query: { id: item.id } });
+    }
   }
-  
-  .header {
-    text-align: right;
-    margin-bottom: 10px;
-  }
-  
-  button {
-    padding: 5px 10px;
-    background-color: #8B4513;
-    color: white;
-    border: none;
-    cursor: pointer;
-  }
-  
-  .weekdays{
-    display: grid;
-    grid-template-columns: repeat(7,1fr);
-    gap:5px;
-    text-align: center;
-    font-weight: bold;
-    color: #8B4513;
-    margin-bottom: 5px;
-    width:100%;
-  }
-  .weekdays div{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 40px;
-  }
-  .calendar-view {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 5px;
-    width:100%;
-    padding: 0;
-    margin:0 auto;
-  }
-  
-  .day {
-    width: 80px;
-    height: 80px;
-    border: 1px solid #ccc;
-    text-align: center;
-    position: relative;
-    cursor: pointer;
-    display:flex;
+};
+</script>
 
-    flex-direction: column;
-  }
-  
-  .day.past {
-    background: #ddd;
-  }
-  
-  .morning-slot {
-    position: absolute;
-    top: 27px;
-    left: 50%;
-    width: 30px;
-    height: 5px;
-    background: #FFE4B5;
-    transform: translateX(-50%);
-  }
-  
-  .afternoon-slot {
-    position: absolute;
-    bottom: 27px;
-    left: 50%;
-    width: 30px;
-    height: 5px;
-    background: #8B4513;
-    transform: translateX(-50%);
-  }
-  
-  .list-view table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  
-  .list-view th, .list-view td {
-    border: 1px solid #ccc;
-    padding: 10px;
-    text-align: center;
-  }
-  
-  .completed {
-    color: green;
-  }
-  
-  .pending {
-    color: gray;
-  }
-  
-  .modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    padding: 20px;
-    border: 1px solid #ccc;
-  }
-  </style>
-  
+<style scoped>
+.appointment-container {
+  padding: 20px;
+}
+.header {
+  display: flex;
+  gap: 10px;
+}
+button {
+  padding: 10px;
+  border: none;
+  background: lightgray;
+  cursor: pointer;
+}
+button.active {
+  background: #8B4513;
+  color: white;
+}
+.consultation-list {
+  margin-top: 20px;
+}
+.consultation-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+  border-radius: 10px;
+  background: #f5f5f5;
+  margin-bottom: 10px;
+}
+.avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+}
+.active-button {
+  background: #8B4513;
+  color: white;
+}
+</style>

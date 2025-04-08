@@ -1,10 +1,9 @@
 <template>
   <div class="content-container">
     <MySchedule v-if="activeTab === 'schedule'" />
-    <Appointment v-if="activeTab==='appointment'"/>
-    <Messages v-if="activeTab==='messages'"/>
-    <Reviews v-if="activeTab==='reviews'"/>
-    <p v-else>请选择左侧菜单项</p>
+    <Appointment v-if="activeTab === 'appointment'"/>
+    <Messages v-if="activeTab === 'messages'"/>
+    <Reviews v-if="activeTab === 'reviews'"/>
   </div>
 </template>
 
