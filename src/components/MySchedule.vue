@@ -113,7 +113,7 @@
         this.firstDayOffset = (firstDay === 0?6:firstDay-1);
 
         this.monthDays=Array.from({length:days},(_,i)=>({
-          date:`${year}-${month+1}-${i+1}`,
+          date:`${i+1}`,
           day:i+1,
           isPast:i+1<new Date().getDate(),
           morning:Math.random()>0.5,
@@ -180,8 +180,8 @@
   }
   
   .day {
-    width: 80px;
     height: 80px;
+    right:5px;
     border: 1px solid #ccc;
     text-align: center;
     position: relative;
@@ -199,7 +199,7 @@
     position: absolute;
     top: 27px;
     left: 50%;
-    width: 30px;
+    width: 50px;
     height: 5px;
     background: #FFE4B5;
     transform: translateX(-50%);
@@ -209,7 +209,7 @@
     position: absolute;
     bottom: 27px;
     left: 50%;
-    width: 30px;
+    width: 50px;
     height: 5px;
     background: #8B4513;
     transform: translateX(-50%);

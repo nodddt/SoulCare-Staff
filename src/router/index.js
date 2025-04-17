@@ -25,9 +25,19 @@ const routes=[
         component:()=>import("../views/SupervisorHome.vue")
     },
     {
-        path:'/login',
-        name:'Login',
-        component:()=>import("../views/Login.vue")
+        path:'/Adminlogin',
+        name:'AdminLogin',
+        component:()=>import("../views/AdminLogin.vue")
+     },
+     {
+        path:'/Supervisorlogin',
+        name:'SupervisorLogin',
+        component:()=>import("../views/SupervisorLogin.vue")
+     },
+     {
+        path:'/Consultantlogin',
+        name:'ConsultantLogin',
+        component:()=>import("../views/ConsultantLogin.vue")
      },
     
 ];

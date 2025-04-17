@@ -1,26 +1,25 @@
 <template>
   <div class="container">
-    <!-- 顶部导航栏 -->
     <Navbar />
-
-    <!-- 侧边栏 -->
-    <Sidebar @menu-change="handleMenuChange" />
-
-    <!-- 主内容区域 -->
-    <div class="content">
-      <router-view></router-view>
+    <div class="main">
+      <Sidebar @menu-change="handleMenuChange" />
+      <div class="content-wrapper">
+        <Content :activeTab="currentTab"/>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import Navbar from "@/components/Navbar.vue";
+import Navbar from "@/components/AdminNavbar.vue";
 import Sidebar from "@/components/AdminSidebar.vue";
+import Content from "@/components/AdminContent.vue";
 
 export default {
   components: {
     Navbar,
-    Sidebar
+    Sidebar,
+    Content,
   },
   data() {
     return {
@@ -42,11 +41,16 @@ export default {
   height: 100vh;
   overflow:hidden;
 }
-
-.content {
-  margin-left: 180px; /* 侧边栏宽度 */
-  margin-top: 80px; /* 顶部导航栏高度 */
+.main {
+  display: flex;
+  flex: 1;
+  overflow:hidden;
+}
+.content-wrapper {
+  flex: 1;  /* 让内容区占据剩余空间 */
+  height: calc(100vh - 80px);
+  overflow-y: auto;
+  background-color: #f8f8f8;
   padding: 20px;
-  flex-grow: 1;
 }
 </style>
