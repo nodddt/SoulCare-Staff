@@ -1,160 +1,233 @@
 <template>
-  <div>
-    <!-- 筛选条件 -->
-    <el-form :inline="true" class="filter-form">
-      <el-form-item label="申请时间">
-        <el-date-picker
-          v-model="filterDate"
-          type="daterange"
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
-        />
-      </el-form-item>
-      <el-form-item label="审批状态">
-        <el-select v-model="filterStatus" placeholder="请选择">
-          <el-option label="全部" value="" />
-          <el-option label="未审批" value="pending" />
-          <el-option label="已通过" value="approved" />
-          <el-option label="已驳回" value="rejected" />
-        </el-select>
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="filterRecords">筛选</el-button>
-      </el-form-item>
-    </el-form>
-
-    <!-- 请假记录列表 -->
-    <el-table :data="filteredLeaves" style="width: 100%">
-      <el-table-column prop="counselorName" label="咨询师" width="120" />
-      <el-table-column prop="applyTime" label="申请时间" width="180" />
-      <el-table-column prop="leaveDate" label="请假日期" width="120" />
-      <el-table-column prop="timePeriod" label="时间段" width="100" />
-      <el-table-column label="请假理由" width="120">
-        <template slot-scope="scope">
-          <el-button type="text" @click="showReason(scope.row.reason)">查看</el-button>
-        </template>
-      </el-table-column>
-      <el-table-column prop="statusText" label="审批状态" width="120" />
-      <el-table-column label="操作" width="150">
-        <template slot-scope="scope">
-          <el-button
-            type="primary"
-            size="small"
-            @click="openApprovalDialog(scope.row)"
-            v-if="scope.row.status === 'pending'"
-          >
-            审批
-          </el-button>
-          <span v-else>{{ scope.row.statusText }}</span>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <!-- 请假理由弹窗 -->
-    <el-dialog title="请假理由" :visible.sync="reasonDialogVisible">
-      <p>{{ selectedReason }}</p>
-      <el-button type="primary" @click="reasonDialogVisible = false">关闭</el-button>
-    </el-dialog>
-
-    <!-- 审批弹窗 -->
-    <el-dialog title="审批请假申请" :visible.sync="approvalDialogVisible">
-      <p>请审批该咨询师的请假申请：</p>
-      <el-radio-group v-model="approvalStatus">
-        <el-radio label="approved">通过</el-radio>
-        <el-radio label="rejected">驳回</el-radio>
-      </el-radio-group>
-      <div style="margin-top: 20px;">
-        <el-button type="primary" @click="submitApproval">确认</el-button>
-        <el-button @click="approvalDialogVisible = false">取消</el-button>
+  <div class="schedule-management">
+    <h2>咨询师排班管理</h2>
+    <div class="schedule-grid">
+      <div
+        v-for="(slot, index) in timeSlots"
+        :key="index"
+        class="time-slot"
+        @click="selectSlot(slot)"
+      >
+        {{ slot.day }} - {{ slot.time }}
       </div>
-    </el-dialog>
+    </div>
+
+    <div v-if="selectedSlot" class="slot-details">
+      <h3>{{ selectedSlot.day }} - {{ selectedSlot.time }} 的排班</h3>
+      <ul>
+        <li v-for="consultant in getScheduledConsultants(selectedSlot)" :key="consultant.consultantId">
+          {{ consultant.username }}
+          <button @click="removeSchedule(consultant.consultantId)">删除</button>
+        </li>
+      </ul>
+
+      <h4>添加排班</h4>
+      <select v-model="selectedConsultantToAdd">
+        <option disabled value="">请选择咨询师</option>
+        <option
+          v-for="consultant in getUnscheduledConsultants(selectedSlot)"
+          :key="consultant.consultantId"
+          :value="consultant.consultantId"
+        >
+          {{ consultant.username }}
+        </option>
+      </select>
+      <button @click="addSchedule">添加</button>
+    </div>
   </div>
 </template>
 
 <script>
+import axios from 'axios';
+
 export default {
+  name: 'ScheduleManagementC',
   data() {
     return {
-      leaveRecords: [
-        {
-          id: 1,
-          counselorName: "张三",
-          applyTime: "2025-04-10 09:30",
-          leaveDate: "2025-04-12",
-          timePeriod: "上午",
-          reason: "家中有急事",
-          status: "pending",
-        },
-        {
-          id: 2,
-          counselorName: "李四",
-          applyTime: "2025-04-09 15:20",
-          leaveDate: "2025-04-11",
-          timePeriod: "下午",
-          reason: "身体不适",
-          status: "approved",
-        }
-      ],
-      filterDate: null,
-      filterStatus: "",
-      reasonDialogVisible: false,
-      selectedReason: "",
-      approvalDialogVisible: false,
-      selectedLeave: null,
-      approvalStatus: ""
+      timeSlots: [],
+      selectedSlot: null,
+      schedules: [],
+      consultants: [],
+      selectedConsultantToAdd: '',
     };
   },
-  computed: {
-    filteredLeaves() {
-      return this.leaveRecords
-        .filter((record) => {
-          if (this.filterStatus && record.status !== this.filterStatus) return false;
-          if (this.filterDate) {
-            const [start, end] = this.filterDate;
-            const applyTime = new Date(record.applyTime);
-            if (applyTime < start || applyTime > end) return false;
-          }
-          return true;
-        })
-        .map(record => ({
-          ...record,
-          statusText: this.getStatusText(record.status)
-        }));
+  created() {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const times = ['AM', 'PM'];
+    this.timeSlots = [];
+
+    for (const day of days) {
+      for (const time of times) {
+        this.timeSlots.push({ day, time });
+      }
     }
   },
   methods: {
-    filterRecords() {
-      // 这里的筛选逻辑已经写在 computed 里，调用时会自动更新
+    async fetchConsultants() {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get('http://localhost:8080/internal/admin/all-consultants', {
+          headers: { token },
+        });
+        if (res.data.code === 1) {
+          this.consultants = res.data.data;
+        } else {
+          alert('获取咨询师列表失败');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('获取咨询师出错');
+      }
     },
-    showReason(reason) {
-      this.selectedReason = reason;
-      this.reasonDialogVisible = true;
+    async fetchSchedules() {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get('http://localhost:8080/internal/admin/schedule/consultant', {
+          headers: { token },
+        });
+        if (res.data.code === 1) {
+          this.schedules = res.data.data;
+        } else {
+          alert('获取排班失败');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('获取排班出错');
+      }
     },
-    openApprovalDialog(record) {
-      this.selectedLeave = record;
-      this.approvalStatus = "";
-      this.approvalDialogVisible = true;
+    selectSlot(slot) {
+      this.selectedSlot = slot;
+      this.selectedConsultantToAdd = '';
     },
-    submitApproval() {
-      if (!this.selectedLeave) return;
-      this.selectedLeave.status = this.approvalStatus;
-      this.approvalDialogVisible = false;
+    getScheduledConsultants(slot) {
+      const filtered = this.schedules.filter(
+        (s) => s.day === slot.day && s.time === slot.time
+      );
+      return this.consultants.filter((c) =>
+        filtered.some((s) => s.consultantId === c.consultantId)
+      );
     },
-    getStatusText(status) {
-      const statusMap = {
-        pending: "未审批",
-        approved: "已通过",
-        rejected: "已驳回"
+    getUnscheduledConsultants(slot) {
+      const scheduledIds = this.schedules
+        .filter((s) => s.day === slot.day && s.time === slot.time)
+        .map((s) => s.consultantId);
+      return this.consultants.filter((c) => !scheduledIds.includes(c.consultantId));
+    },
+    async addSchedule() {
+      if (!this.selectedConsultantToAdd || !this.selectedSlot) return;
+
+      const newEntry = {
+        consultantId: this.selectedConsultantToAdd,
+        day: this.selectedSlot.day,
+        time: this.selectedSlot.time,
       };
-      return statusMap[status] || "未知状态";
-    }
-  }
+
+      const updatedSchedules = [...this.schedules, newEntry];
+
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.post(
+          'http://localhost:8080/internal/admin/schedule/consultant',
+          { schedule: updatedSchedules },
+          {
+            headers: {
+              token,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        if (res.data.code === 1) {
+          this.schedules = res.data.data;
+          this.selectedConsultantToAdd = '';
+        } else {
+          alert('添加排班失败：' + res.data.msg);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('添加排班出错');
+      }
+    },
+    async removeSchedule(consultantId) {
+      if (!this.selectedSlot) return;
+
+      const updatedSchedules = this.schedules.filter(
+        (s) =>
+          !(
+            s.consultantId === consultantId &&
+            s.day === this.selectedSlot.day &&
+            s.time === this.selectedSlot.time
+          )
+      );
+
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.post(
+          'http://localhost:8080/internal/admin/schedule/consultant',
+          { schedule: updatedSchedules },
+          {
+            headers: {
+              token,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        if (res.data.code === 1) {
+          this.schedules = updatedSchedules;
+        } else {
+          alert('删除排班失败：' + res.data.msg);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('删除排班出错');
+      }
+    },
+  },
+  mounted() {
+    this.fetchConsultants();
+    this.fetchSchedules();
+  },
 };
 </script>
 
 <style scoped>
-.filter-form {
+.schedule-management {
+  padding: 20px;
+}
+
+.schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
   margin-bottom: 20px;
+}
+
+.time-slot {
+  background-color: #ffe4b5;
+  padding: 10px;
+  text-align: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.time-slot:hover {
+  background-color: #f0c97d;
+}
+
+.slot-details {
+  background: #f9f9f9;
+  padding: 15px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.slot-details ul {
+  list-style: none;
+  padding: 0;
+}
+
+.slot-details li {
+  display: flex;
+  justify-content: space-between;
+  margin: 8px 0;
 }
 </style>

@@ -1,271 +1,234 @@
 <template>
-    <div class="schedule-management">
-      <div class="calendar-view">
-        <div class="calendar-header">{{ currentMonthLabel }}</div>
-        <div class="calendar-grid">
-          <div class="day-label" v-for="day in weekDays" :key="day">{{ day }}</div>
-          <div
-            v-for="(date, index) in calendarDays"
-            :key="index"
-            class="calendar-cell"
-            :class="{ past: isPast(date) }"
-          >
-            <div class="date-number">{{ date.getDate() }}</div>
-            <div
-              class="mark morning"
-              v-if="hasShift(date, 'morning')"
-            ></div>
-            <div
-              class="mark afternoon"
-              v-if="hasShift(date, 'afternoon')"
-            ></div>
-          </div>
-        </div>
-      </div>
-  
-      <div class="edit-panel">
-        <div class="day-row" v-for="day in weekDays" :key="day">
-          <div class="day-name">{{ day }}</div>
-          <div class="time-slot" @click="openShiftDialog(day, 'morning')">上午</div>
-          <div class="time-slot" @click="openShiftDialog(day, 'afternoon')">下午</div>
-        </div>
-      </div>
-  
-      <!-- 排班弹窗 -->
-      <div v-if="showDialog" class="dialog-overlay">
-        <div class="dialog-box">
-          <h3>{{ dialogTitle }}</h3>
-          <div class="consultant-list">
-            <div v-for="c in currentConsultantList" :key="c.id">
-              <input type="checkbox" :value="c.id" v-model="selectedConsultants" />
-              {{ c.name }}
-            </div>
-          </div>
-          <div class="dialog-actions">
-            <button @click="confirmDialogAction">确认</button>
-            <button @click="closeDialog">取消</button>
-          </div>
-        </div>
+  <div class="schedule-management">
+    <h2>督导排班管理</h2>
+    <div class="schedule-grid">
+      <div
+        v-for="(slot, index) in timeSlots"
+        :key="index"
+        class="time-slot"
+        @click="selectSlot(slot)"
+      >
+        {{ slot.day }} - {{ slot.time }}
       </div>
     </div>
-  </template>
-  
-  <script>
-  const getWeekday = (date) => {
-    return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][
-      date.getDay()
-    ];
-  };
-  
-  export default {
-    name: 'ScheduleManagement',
-    data() {
-      return {
-        today: new Date(),
-        currentYear: new Date().getFullYear(),
-        currentMonth: new Date().getMonth(),
-        weekDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-        scheduleTemplate: {
-          Monday: { morning: [], afternoon: [] },
-          Tuesday: { morning: [], afternoon: [] },
-          Wednesday: { morning: [], afternoon: [] },
-          Thursday: { morning: [], afternoon: [] },
-          Friday: { morning: [], afternoon: [] },
-          Saturday: { morning: [], afternoon: [] },
-          Sunday: { morning: [], afternoon: [] },
-        },
-        showDialog: false,
-        dialogTitle: '',
-        dialogMode: '',
-        dialogDay: '',
-        dialogTime: '',
-        selectedConsultants: [],
-        consultants: [
-          { id: 1, name: '咨询师A' },
-          { id: 2, name: '咨询师B' },
-          { id: 3, name: '咨询师C' },
-        ],
+
+    <div v-if="selectedSlot" class="slot-details">
+      <h3>{{ selectedSlot.day }} - {{ selectedSlot.time }} 的排班</h3>
+      <ul>
+        <li
+          v-for="supervisor in getScheduledSupervisors(selectedSlot)"
+          :key="supervisor.supervisorId"
+        >
+          {{ supervisor.username }}
+          <button @click="removeSchedule(supervisor.supervisorId)">删除</button>
+        </li>
+      </ul>
+
+      <h4>添加排班</h4>
+      <select v-model="selectedSupervisorToAdd">
+        <option disabled value="">请选择督导</option>
+        <option
+          v-for="supervisor in getUnscheduledSupervisors(selectedSlot)"
+          :key="supervisor.supervisorId"
+          :value="supervisor.supervisorId"
+        >
+          {{ supervisor.username }}
+        </option>
+      </select>
+      <button @click="addSchedule">添加</button>
+    </div>
+  </div>
+</template>
+
+<script>
+import axios from 'axios';
+
+export default {
+  name: 'ScheduleManagementS',
+  data() {
+    return {
+      timeSlots: [],
+      selectedSlot: null,
+      schedules: [],
+      supervisors: [],
+      selectedSupervisorToAdd: '',
+    };
+  },
+  created() {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const times = ['AM', 'PM'];
+    for (const day of days) {
+      for (const time of times) {
+        this.timeSlots.push({ day, time });
+      }
+    }
+  },
+  mounted() {
+    this.fetchSupervisors();
+    this.fetchSchedules();
+  },
+  methods: {
+    async fetchSupervisors() {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get('http://localhost:8080/internal/admin/all-supervisors', {
+          headers: { token },
+        });
+        if (res.data.code === 1) {
+          this.supervisors = res.data.data;
+        } else {
+          alert('获取督导列表失败');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('获取督导出错');
+      }
+    },
+    async fetchSchedules() {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get('http://localhost:8080/internal/admin/schedule/supervisor', {
+          headers: { token },
+        });
+        if (res.data.code === 1) {
+          this.schedules = res.data.data;
+        } else {
+          alert('获取排班失败');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('获取排班出错');
+      }
+    },
+    selectSlot(slot) {
+      this.selectedSlot = slot;
+      this.selectedSupervisorToAdd = '';
+    },
+    getScheduledSupervisors(slot) {
+      const filtered = this.schedules.filter(
+        (s) => s.day === slot.day && s.time === slot.time
+      );
+      return this.supervisors.filter((s) =>
+        filtered.some((sch) => sch.supervisorId === s.supervisorId)
+      );
+    },
+    getUnscheduledSupervisors(slot) {
+      const scheduledIds = this.schedules
+        .filter((s) => s.day === slot.day && s.time === slot.time)
+        .map((s) => s.supervisorId);
+      return this.supervisors.filter((s) => !scheduledIds.includes(s.supervisorId));
+    },
+    async addSchedule() {
+      if (!this.selectedSupervisorToAdd || !this.selectedSlot) return;
+
+      const newEntry = {
+        supervisorId: this.selectedSupervisorToAdd,
+        day: this.selectedSlot.day,
+        time: this.selectedSlot.time,
       };
-    },
-    computed: {
-      currentMonthLabel() {
-        return `${this.currentMonth + 1}月 April`;
-      },
-      calendarDays() {
-        const days = [];
-        const firstDay = new Date(this.currentYear, this.currentMonth, 1);
-        const lastDay = new Date(this.currentYear, this.currentMonth + 1, 0);
-        const startOffset = (firstDay.getDay() + 6) % 7;
-  
-        for (let i = 0; i < startOffset; i++) days.push(null);
-        for (let i = 1; i <= lastDay.getDate(); i++) {
-          days.push(new Date(this.currentYear, this.currentMonth, i));
-        }
-        return days;
-      },
-      currentConsultantList() {
-        const all = this.consultants;
-        const scheduled = this.scheduleTemplate[this.dialogDay][this.dialogTime];
-        if (this.dialogMode === 'add') {
-          return all.filter((c) => !scheduled.includes(c.id));
+
+      const updatedSchedules = [...this.schedules, newEntry];
+
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.post(
+          'http://localhost:8080/internal/admin/schedule/supervisor',
+          { schedule: updatedSchedules },
+          {
+            headers: {
+              token,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        if (res.data.code === 1) {
+          this.schedules = res.data.data;
+          this.selectedSupervisorToAdd = '';
         } else {
-          return all.filter((c) => scheduled.includes(c.id));
+          alert('添加排班失败：' + res.data.msg);
         }
-      },
+      } catch (err) {
+        console.error(err);
+        alert('添加排班出错');
+      }
     },
-    methods: {
-      isPast(date) {
-        return date && date < new Date(this.today.setHours(0, 0, 0, 0));
-      },
-      hasShift(date, time) {
-        if (!date) return false;
-        const weekday = getWeekday(date);
-        return this.scheduleTemplate[weekday][time].length > 0;
-      },
-      openShiftDialog(day, time) {
-        this.dialogDay = day;
-        this.dialogTime = time;
-        this.dialogMode = 'view';
-        this.dialogTitle = `${day} ${time === 'morning' ? '上午' : '下午'} 排班管理`;
-        this.selectedConsultants = [];
-        this.showDialog = true;
-      },
-      confirmDialogAction() {
-        const targetList = this.scheduleTemplate[this.dialogDay][this.dialogTime];
-        if (this.dialogMode === 'add') {
-          this.selectedConsultants.forEach((id) => {
-            if (!targetList.includes(id)) targetList.push(id);
-          });
+    async removeSchedule(supervisorId) {
+      if (!this.selectedSlot) return;
+
+      const updatedSchedules = this.schedules.filter(
+        (s) =>
+          !(
+            s.supervisorId === supervisorId &&
+            s.day === this.selectedSlot.day &&
+            s.time === this.selectedSlot.time
+          )
+      );
+
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.post(
+          'http://localhost:8080/internal/admin/schedule/supervisor',
+          { schedule: updatedSchedules },
+          {
+            headers: {
+              token,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        if (res.data.code === 1) {
+          this.schedules = res.data.data;
         } else {
-          this.scheduleTemplate[this.dialogDay][this.dialogTime] = targetList.filter(
-            (id) => !this.selectedConsultants.includes(id)
-          );
+          alert('删除排班失败：' + res.data.msg);
         }
-        this.closeDialog();
-      },
-      closeDialog() {
-        this.showDialog = false;
-      },
+      } catch (err) {
+        console.error(err);
+        alert('删除排班出错');
+      }
     },
-  };
-  </script>
-  
-  <style scoped>
-  .schedule-management {
-    display: flex;
-    padding: 20px;
-    font-family: Arial, sans-serif;
-  }
-  
-  .calendar-view {
-    width: 60%;
-  }
-  
-  .calendar-header {
-    font-weight: bold;
-    font-size: 18px;
-    margin-bottom: 10px;
-  }
-  
-  .calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 5px;
-  }
-  
-  .day-label {
-    font-weight: bold;
-    color: #8b4513;
-    text-align: center;
-  }
-  
-  .calendar-cell {
-    height: 60px;
-    border: 1px solid #ccc;
-    position: relative;
-    background-color: white;
-  }
-  
-  .calendar-cell.past {
-    background-color: #ddd;
-  }
-  
-  .date-number {
-    position: absolute;
-    top: 2px;
-    left: 4px;
-    font-size: 12px;
-  }
-  
-  .mark.morning {
-    position: absolute;
-    top: 18px;
-    left: 8px;
-    right: 8px;
-    height: 5px;
-    background-color: #ffe4b5;
-    border-radius: 2px;
-  }
-  
-  .mark.afternoon {
-    position: absolute;
-    bottom: 6px;
-    left: 8px;
-    right: 8px;
-    height: 5px;
-    background-color: #8b4513;
-    border-radius: 2px;
-  }
-  
-  .edit-panel {
-    width: 35%;
-    margin-left: 5%;
-  }
-  
-  .day-row {
-    display: flex;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-  
-  .day-name {
-    width: 50px;
-    font-weight: bold;
-    color: #8b4513;
-  }
-  
-  .time-slot {
-    flex: 1;
-    border: 1px solid #aaa;
-    text-align: center;
-    cursor: pointer;
-    padding: 5px;
-    margin: 0 5px;
-  }
-  
-  .dialog-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.4);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  
-  .dialog-box {
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    width: 300px;
-  }
-  
-  .dialog-actions {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 10px;
-  }
-  </style>
-  
+  },
+};
+</script>
+
+<style scoped>
+.schedule-management {
+  padding: 20px;
+}
+
+.schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.time-slot {
+  background-color: #ffe4b5;
+  padding: 10px;
+  text-align: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.time-slot:hover {
+  background-color: #f0c97d;
+}
+
+.slot-details {
+  background: #f9f9f9;
+  padding: 15px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.slot-details ul {
+  list-style: none;
+  padding: 0;
+}
+
+.slot-details li {
+  display: flex;
+  justify-content: space-between;
+  margin: 8px 0;
+}
+</style>

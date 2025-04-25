@@ -5,8 +5,8 @@
       class="el-menu-vertical"
       @select="handleSelect"
     >
+      <el-menu-item index="databoard">数据看板</el-menu-item>
       <el-menu-item index="staff-management">内部职员管理</el-menu-item>
-      <el-menu-item index="export-data">导出数据</el-menu-item>
       <el-menu-item index="leave-approval">请假审批</el-menu-item>
       <el-menu-item index="schedule-management-c">咨询师排班</el-menu-item>
       <el-menu-item index="schedule-management-s">督导排班</el-menu-item>
@@ -18,7 +18,7 @@
 export default {
   data() {
     return {
-      activeMenu: 'staff-management'
+      activeMenu: 'databoard'
     };
   },
   methods: {
