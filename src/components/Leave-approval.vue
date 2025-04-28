@@ -26,18 +26,17 @@
 
     <!-- 请假记录列表 -->
     <el-table :data="filteredLeaves" style="width: 100%">
-      <el-table-column prop="counselorName" label="咨询师" width="120" />
-      <el-table-column prop="applyTime" label="申请时间" width="180" />
-      <el-table-column prop="leaveDate" label="请假日期" width="120" />
-      <el-table-column prop="timePeriod" label="时间段" width="100" />
+      <el-table-column prop="consultantId" label="咨询师ID" width="120" />
+      <el-table-column prop="date" label="请假日期" width="120" />
+      <el-table-column prop="time" label="时间段" width="100" />
       <el-table-column label="请假理由" width="120">
-        <template slot-scope="scope">
-          <el-button type="text" @click="showReason(scope.row.reason)">查看</el-button>
+        <template v-slot="scope">
+          <el-button type="text" @click="showReason(scope.row.cancellationReason)">查看</el-button>
         </template>
       </el-table-column>
       <el-table-column prop="statusText" label="审批状态" width="120" />
       <el-table-column label="操作" width="150">
-        <template slot-scope="scope">
+        <template v-slot="scope">
           <el-button
             type="primary"
             size="small"
@@ -54,7 +53,9 @@
     <!-- 请假理由弹窗 -->
     <el-dialog title="请假理由" :visible.sync="reasonDialogVisible">
       <p>{{ selectedReason }}</p>
-      <el-button type="primary" @click="reasonDialogVisible = false">关闭</el-button>
+      <div style="text-align: right; margin-top: 20px;">
+        <el-button type="primary" @click="reasonDialogVisible = false">关闭</el-button>
+      </div>
     </el-dialog>
 
     <!-- 审批弹窗 -->
@@ -64,7 +65,7 @@
         <el-radio label="approved">通过</el-radio>
         <el-radio label="rejected">驳回</el-radio>
       </el-radio-group>
-      <div style="margin-top: 20px;">
+      <div style="margin-top: 20px; text-align: right;">
         <el-button type="primary" @click="submitApproval">确认</el-button>
         <el-button @click="approvalDialogVisible = false">取消</el-button>
       </div>
@@ -95,8 +96,8 @@ export default {
           if (this.filterStatus && record.status !== this.filterStatus) return false;
           if (this.filterDate) {
             const [start, end] = this.filterDate;
-            const applyTime = new Date(record.applyTime);
-            if (applyTime < start || applyTime > end) return false;
+            const recordDate = new Date(record.date);
+            if (recordDate < start || recordDate > end) return false;
           }
           return true;
         })
@@ -115,7 +116,15 @@ export default {
           }
         });
         if (response.data.code === "1") {
-          this.leaveRecords = response.data.data;
+          // 注意后端返回的字段名
+          this.leaveRecords = response.data.data.map(item => ({
+            scheduleId: item.scheduleId,
+            consultantId: item.consultantId,
+            date: item.date,
+            time: item.time,
+            cancellationReason: item.cancellationReason,
+            status: "pending" // 默认是pending，后面审批后会改变
+          }));
         } else {
           this.$message.error("请假数据获取失败：" + response.data.msg);
         }
@@ -150,7 +159,6 @@ export default {
             }
           }
         );
-
         if (res.data.code === "1") {
           this.$message.success("审批成功");
           this.selectedLeave.status = this.approvalStatus;

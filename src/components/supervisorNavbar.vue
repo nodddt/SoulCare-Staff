@@ -6,11 +6,22 @@
     </div>
       
       <div class="profile">
-        <el-button circle>咨询师1</el-button>
+        <el-button circle>{{supervisorname}}</el-button>
       </div>
     </div>
   </template>
-  
+  <script>
+  export default {
+    data() {
+      return {
+        supervisorname: '' // 定义变量
+      }
+    },
+    mounted() {
+      this.supervisorname = localStorage.getItem('supervisorname') || '咨询师';
+    }
+  }
+  </script>
   <style scoped>
   .navbar {
     width: 100%;

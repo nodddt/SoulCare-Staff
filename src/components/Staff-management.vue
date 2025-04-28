@@ -1,7 +1,13 @@
 <template>
   <div class="staff-management">
-    <h2>账号列表</h2>
-    <table border="1" cellspacing="0" cellpadding="8">
+    <h2>内部职员管理</h2>
+
+    <div class="button-group">
+      <button @click="openAddDialog('consultant')">新增咨询师</button>
+      <button @click="openAddDialog('supervisor')">新增督导</button>
+    </div>
+
+    <table>
       <thead>
         <tr>
           <th>ID</th>
@@ -11,149 +17,176 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="user in accountList" :key="user.id">
-          <td>{{ user.id }}</td>
-          <td>{{ user.username }}</td>
-          <td>{{ user.professionalInfo || '无' }}</td>
-          <td>{{ user.type }}</td>
+        <tr v-for="staff in staffList" :key="staff.id">
+          <td>{{ staff.id }}</td>
+          <td>{{ staff.username }}</td>
+          <td>{{ staff.professionalInfo }}</td>
+          <td>{{ staff.type }}</td>
         </tr>
       </tbody>
     </table>
 
-    <div class="button-group" style="margin-top: 20px;">
-      <button @click="openAddDialog('consultant')">新增咨询师</button>
-      <button @click="openAddDialog('supervisor')">新增督导</button>
-    </div>
-
-    <!-- 添加账号弹窗 -->
+    <!-- 新增弹窗 -->
     <div v-if="showDialog" class="dialog-overlay">
       <div class="dialog">
-        <h3>添加 {{ newUser.type === 'consultant' ? '咨询师' : '督导' }}</h3>
-        <label>用户名：<input v-model="newUser.username" /></label><br />
-        <label>密码：<input type="password" v-model="newUser.password" /></label><br />
-        <label>简介（可选）：<input v-model="newUser.professionalInfo" /></label><br />
-        <div style="margin-top: 10px;">
-          <button @click="submitNewUser">提交</button>
+        <h3>新增{{ addType === 'consultant' ? '咨询师' : '督导' }}</h3>
+        <input v-model="newStaff.username" placeholder="用户名" />
+        <input v-model="newStaff.password" type="password" placeholder="密码" />
+        <input v-model="newStaff.professionalInfo" placeholder="简介（可选）" />
+        <div class="dialog-buttons">
+          <button @click="submitNewStaff">提交</button>
           <button @click="closeDialog">取消</button>
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
 <script>
-import axios from 'axios';
+import axios from 'axios'
 
 export default {
   name: 'StaffManagement',
   data() {
     return {
-      accountList: [],
+      staffList: [],
       showDialog: false,
-      newUser: {
+      addType: '', // 'consultant' or 'supervisor'
+      newStaff: {
         username: '',
         password: '',
         professionalInfo: '',
-        type: '',
       },
-    };
+      token: localStorage.getItem('token') || '', // 可根据你的项目调整
+    }
+  },
+  created() {
+    this.fetchStaff()
   },
   methods: {
-    async fetchAccountList() {
+    async fetchStaff() {
       try {
-        const res = await axios.get('http://localhost:8080/internal/admin/accounts', {
-          headers: {
-            token: localStorage.getItem('token'),
-          },
-        });
-        if (res.data.code === 1) {
-          // 假设返回的是一个包含所有账号的数组，区分类型字段为 userType（consultant/supervisor）
-          this.accountList = res.data.data.map(item => ({
-            id: item.consultantId || item.supervisorId,
-            username: item.username,
-            professionalInfo: item.professionalInfo,
-            type: item.userType === 'consultant' ? '咨询师' : '督导',
-          }));
-        } else {
-          alert('获取账号列表失败：' + res.data.msg);
-        }
-      } catch (err) {
-        console.error(err);
-        alert('获取账号列表出错');
+        const consultantRes = await axios.get('http://localhost:8080/internal/admin/all-consultants', {
+          headers: { token: this.token }
+        })
+        const supervisorRes = await axios.get('http://localhost:8080/internal/admin/all-supervisors', {
+          headers: { token: this.token }
+        })
+
+        const consultants = consultantRes.data.data.map(item => ({
+          id: item.consultantId,
+          username: item.consultantname,
+          professionalInfo: item.professionalInfo || '无',
+          type: '咨询师',
+        }))
+
+        const supervisors = supervisorRes.data.data.map(item => ({
+          id: item.supervisorId,
+          username: item.supervisorname,
+          professionalInfo: item.professionalInfo || '无',
+          type: '督导',
+        }))
+
+        this.staffList = [...consultants, ...supervisors]
+      } catch (error) {
+        console.error('获取职员列表失败', error)
       }
     },
-
     openAddDialog(type) {
-      this.showDialog = true;
-      this.newUser = {
+      this.addType = type
+      this.showDialog = true
+      this.newStaff = {
         username: '',
         password: '',
         professionalInfo: '',
-        type,
-      };
+      }
     },
-
     closeDialog() {
-      this.showDialog = false;
+      this.showDialog = false
     },
-
-    async submitNewUser() {
-      const { username, password, professionalInfo, type } = this.newUser;
-      if (!username || !password) {
-        alert('用户名和密码不能为空');
-        return;
+    async submitNewStaff() {
+      if (!this.newStaff.username || !this.newStaff.password) {
+        alert('用户名和密码不能为空')
+        return
       }
 
-      const url =
-        type === 'consultant'
-          ? 'http://localhost:8080/internal/admin/consultant'
-          : 'http://localhost:8080/internal/admin/supervisor';
+      const url = this.addType === 'consultant'
+        ? 'http://localhost:8080/internal/admin/consultant'
+        : 'http://localhost:8080/internal/admin/supervisor'
+
+      const formData = new URLSearchParams()
+      formData.append('username', this.newStaff.username)
+      formData.append('password', this.newStaff.password)
+      formData.append('professionalInfo', this.newStaff.professionalInfo)
 
       try {
-        const res = await axios.post(
-          url,
-          new URLSearchParams({ username, password, professionalInfo }),
-          {
-            headers: {
-              token: localStorage.getItem('token'),
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
+        await axios.post(url, formData, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            token: this.token,
           }
-        );
-        if (res.data.code === 1) {
-          alert('账号添加成功');
-          this.closeDialog();
-          this.fetchAccountList(); // 刷新账号列表
-        } else {
-          alert('添加失败：' + res.data.msg);
-        }
-      } catch (err) {
-        console.error(err);
-        alert('添加账号出错');
+        })
+        alert('新增成功')
+        this.closeDialog()
+        this.fetchStaff() // 重新刷新列表
+      } catch (error) {
+        console.error('新增职员失败', error)
+        alert('新增失败')
       }
-    },
-  },
-  mounted() {
-    this.fetchAccountList();
-  },
-};
+    }
+  }
+}
 </script>
 
 <style scoped>
+.staff-management {
+  padding: 20px;
+}
+.button-group {
+  margin-bottom: 20px;
+}
+.button-group button {
+  margin-right: 10px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+th, td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: center;
+}
 .dialog-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.4);
+  background: rgba(0,0,0,0.5);
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
 }
 .dialog {
   background: white;
   padding: 20px;
-  border-radius: 10px;
+  border-radius: 8px;
+  width: 300px;
+}
+.dialog input {
+  width: 100%;
+  margin: 8px 0;
+  padding: 8px;
+  box-sizing: border-box;
+}
+.dialog-buttons {
+  display: flex;
+  justify-content: space-between;
+}
+.dialog-buttons button {
+  padding: 6px 12px;
 }
 </style>

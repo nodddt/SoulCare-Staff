@@ -35,7 +35,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in scheduleList" :key="item.date">
+          <tr v-for="(item, index) in scheduleList" :key="index">
             <td>{{ item.date }}</td>
             <td>{{ item.time }}</td>
             <td>
@@ -70,7 +70,7 @@ export default {
     return {
       isCalendarView: true,
       currentMonth: new Date().getMonth() + 1,
-      currentMonthName: new Intl.DateTimeFormat("en", { month: "long" }).format(new Date()),
+      currentMonthName: new Intl.DateTimeFormat("zh-CN", { month: "long" }).format(new Date()),
       weekdays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
       monthDays: [],
       firstDayOffset: 0,
@@ -78,44 +78,48 @@ export default {
       showLeaveModal: false,
       leaveReason: "",
       currentLeaveItem: null,
-      consultantId: 123 // 登录时获取的咨询师ID
+      consultantId: '', // 这里一开始是空
     };
   },
   created() {
-    this.loadSchedule();
+    this.consultantId = localStorage.getItem('consultantId');
+    if (!this.consultantId) {
+      alert("未找到登录信息，请重新登录！");
+      this.$router.push("/login"); 
+    } else {
+      this.loadSchedule();
+    }
   },
   methods: {
-    // 切换视图模式
     toggleView() {
       this.isCalendarView = !this.isCalendarView;
     },
 
-    // 显示某一天的排班
     showSchedule(date) {
       this.isCalendarView = false;
       this.$nextTick(() => {
         const target = this.scheduleList.find(item => item.date === date);
         if (target) {
-          document.querySelector(`tr[data-date="${date}"]`).scrollIntoView();
+          const el = document.querySelector(`tr[data-date="${date}"]`);
+          if (el) {
+            el.scrollIntoView();
+          }
         }
       });
     },
 
-    // 点击申请请假
     applyLeave(item) {
       this.currentLeaveItem = item;
       this.showLeaveModal = true;
     },
 
-    // 提交请假申请
     submitLeave() {
       if (!this.leaveReason.trim()) {
         alert("请填写请假理由");
         return;
       }
-
-      // 发起请假请求
-      this.$axios.post('/internal/consultant/leave', {
+      // 【改动】提交请假
+      this.$axios.post('http://localhost:8080/internal/consultant/leave', {
         consultantId: this.consultantId,
         date: this.currentLeaveItem.date,
         time: this.currentLeaveItem.time,
@@ -125,34 +129,68 @@ export default {
           alert("请假申请已提交！");
           this.currentLeaveItem.leaveApplied = true;
         } else {
-          alert("请假申请失败，请稍后再试。");
+          alert(response.data.message || "请假失败，请稍后再试。");
         }
       }).catch(error => {
-        console.error("请假申请请求失败", error);
-        alert("请假申请失败，请稍后再试。");
+        console.error("请假失败", error);
+        alert("请假失败，请稍后重试。");
       });
 
-      // 关闭弹窗
       this.showLeaveModal = false;
       this.leaveReason = "";
     },
 
-    // 加载排班数据
     loadSchedule() {
-      this.$axios.get(`/internal/consultant/schedule`, {//这个咨询师获取自己排班的接口我不知道应该怎么写，，
+      this.$axios.get('http://localhost:8080/internal/consultant/schedule', {
         params: { consultantId: this.consultantId }
       }).then(response => {
-        if (response.data && response.data.schedule) {
-          this.scheduleList = response.data.schedule.map(item => ({
+        if (response.data) {
+          const rawList = response.data;
+
+          this.scheduleList = rawList.map(item => ({
             date: item.date,
             time: item.time,
-            isCompleted: item.isCompleted,
-            leaveApplied: item.leaveApplied
+            isCompleted: this.isPast(item.date),
           }));
+
+          this.generateMonthDays();
         }
       }).catch(error => {
-        console.error("获取排班数据失败", error);
+        console.error("加载排班失败", error);
       });
+    },
+
+    generateMonthDays() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      const firstDay = new Date(year, month, 1).getDay();
+      this.firstDayOffset = (firstDay + 6) % 7; // 让周一为一周的第一天
+
+      this.monthDays = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const dayObj = {
+          date: dateStr,
+          isPast: this.isPast(dateStr),
+          morning: false,
+          afternoon: false,
+        };
+        const schedules = this.scheduleList.filter(item => item.date === dateStr);
+        for (const sch of schedules) {
+          if (sch.time === 'AM') dayObj.morning = true;
+          if (sch.time === 'PM') dayObj.afternoon = true;
+        }
+        this.monthDays.push(dayObj);
+      }
+    },
+
+    isPast(dateStr) {
+      const today = new Date();
+      const date = new Date(dateStr);
+      return date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
     }
   }
 };

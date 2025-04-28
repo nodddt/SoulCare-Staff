@@ -6,11 +6,22 @@
     </div>
       
       <div class="profile">
-        <el-button circle>内部职员1</el-button>
+        <el-button circle>{{adminname}}</el-button>
       </div>
     </div>
   </template>
-  
+  <script>
+  export default {
+    data() {
+      return {
+        username: '' // 定义变量
+      }
+    },
+    mounted() {
+      this.adminname = localStorage.getItem('adminname') || '咨询师';
+    }
+  }
+  </script>
   <style scoped>
   .navbar {
     width: 100%;
@@ -45,7 +56,7 @@
   .profile {
   display: flex;
   align-items: center;
-  margin-right: 20px; /* 确保头像不会太靠右 */
+  margin-right: 40px; /* 确保头像不会太靠右 */
 }
 
 .avatar-button {
