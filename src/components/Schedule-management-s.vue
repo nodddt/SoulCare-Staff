@@ -55,8 +55,8 @@ export default {
     };
   },
   created() {
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const times = ['AM', 'PM'];
+    const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    const times = ['上午', '下午'];
     for (const day of days) {
       for (const time of times) {
         this.timeSlots.push({ day, time });

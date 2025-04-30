@@ -142,7 +142,7 @@ export default {
                     localStorage.setItem('supervisorId', supervisorId);
                     localStorage.setItem('supervisorname', supervisorname);
                     localStorage.setItem('token', token);
-                    this.$router.push('/SupervisorHome');
+                    this.$router.push('/supervisorHome');
                 } else {
                     alert(response.data.msg);
                 }

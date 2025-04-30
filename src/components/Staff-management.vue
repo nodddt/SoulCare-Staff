@@ -58,7 +58,7 @@ export default {
         password: '',
         professionalInfo: '',
       },
-      token: localStorage.getItem('token') || '', // 可根据你的项目调整
+      token: localStorage.getItem('token') || '',
     }
   },
   created() {
@@ -106,8 +106,21 @@ export default {
       this.showDialog = false
     },
     async submitNewStaff() {
+      const usernameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9]+$/;  // 只允许中文、英文、数字
+      const passwordRegex = /^[a-zA-Z0-9]+$/;               // 只允许英文、数字
+
       if (!this.newStaff.username || !this.newStaff.password) {
         alert('用户名和密码不能为空')
+        return
+      }
+
+      if (!usernameRegex.test(this.newStaff.username)) {
+        alert('用户名只能包含中文、英文和数字')
+        return
+      }
+
+      if (!passwordRegex.test(this.newStaff.password)) {
+        alert('密码只能包含英文和数字')
         return
       }
 
@@ -129,7 +142,7 @@ export default {
         })
         alert('新增成功')
         this.closeDialog()
-        this.fetchStaff() // 重新刷新列表
+        this.fetchStaff()
       } catch (error) {
         console.error('新增职员失败', error)
         alert('新增失败')
@@ -147,7 +160,18 @@ export default {
   margin-bottom: 20px;
 }
 .button-group button {
+  background-color: #FFE4B5;
+  color: #333;
+  border: none;
+  padding: 5px 10px;
+  font-size: 15px;
+  border-radius: 10px;
+  cursor: pointer;
   margin-right: 10px;
+  transition: background-color 0.3s;
+}
+.button-group button:hover {
+  background-color: #FFD39B;
 }
 table {
   width: 100%;
@@ -187,6 +211,7 @@ th, td {
   justify-content: space-between;
 }
 .dialog-buttons button {
-  padding: 6px 12px;
+  padding: 8px 16px;
+  font-size: 16px;
 }
 </style>

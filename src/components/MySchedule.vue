@@ -148,9 +148,9 @@ export default {
           const rawList = response.data;
 
           this.scheduleList = rawList.map(item => ({
-            date: item.date,
-            time: item.time,
-            isCompleted: this.isPast(item.date),
+            date: item.availableDate,
+            time: item.startTime,
+            isCompleted: this.isPast(item.availableDate),
           }));
 
           this.generateMonthDays();
@@ -180,8 +180,8 @@ export default {
         };
         const schedules = this.scheduleList.filter(item => item.date === dateStr);
         for (const sch of schedules) {
-          if (sch.time === 'AM') dayObj.morning = true;
-          if (sch.time === 'PM') dayObj.afternoon = true;
+          if (sch.time === '8') dayObj.morning = true;
+          if (sch.time === '13') dayObj.afternoon = true;
         }
         this.monthDays.push(dayObj);
       }

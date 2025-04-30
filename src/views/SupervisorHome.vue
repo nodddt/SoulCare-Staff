@@ -11,7 +11,7 @@
 </template>
 
 <script>
-import Navbar from "@/components/SupervisorNavbar.vue";
+import Navbar from "@/components/supervisorNavbar.vue";
 import Sidebar from "@/components/SupervisorSidebar.vue";
 import Content from "@/components/SupervisorContent.vue";
 
@@ -23,7 +23,7 @@ export default {
   },
   data() {
     return {
-      currentTab: "schedule"
+      currentTab: "schedule-view"
     };
   },
   methods: {
