@@ -1,7 +1,7 @@
 <template>
     <div class="content-container">
       <Staffmanagement v-if="activeTab === 'staff-management'" />
-      <Exportdata v-if="activeTab === 'export-data'"/>
+      <databoard v-if="activeTab === 'databoard'"/>
       <Leaveapproval v-if="activeTab === 'leave-approval'"/>
       <Schedulemanagementc v-if="activeTab === 'schedule-management-c'"/>
       <Schedulemanagements v-if="activeTab === 'schedule-management-s'"/>
@@ -10,7 +10,7 @@
   
   <script>
   import Staffmanagement from "@/components/Staff-management.vue";
-  import Exportdata from "@/components/Export-data.vue";
+  import databoard from "@/components/Databoard.vue";
   import Leaveapproval from "@/components/Leave-approval.vue";
   import Schedulemanagementc from "@/components/Schedule-management-c.vue";
   import Schedulemanagements from "@/components/Schedule-management-s.vue";
@@ -22,7 +22,7 @@
     },
     components: {
       Staffmanagement,
-      Exportdata,
+      databoard,
       Leaveapproval,
       Schedulemanagementc,
       Schedulemanagements,

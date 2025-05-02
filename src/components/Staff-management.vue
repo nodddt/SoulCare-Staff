@@ -33,6 +33,18 @@
         <input v-model="newStaff.username" placeholder="用户名" />
         <input v-model="newStaff.password" type="password" placeholder="密码" />
         <input v-model="newStaff.professionalInfo" placeholder="简介（可选）" />
+
+        <!-- 仅咨询师新增时显示督导选择 -->
+        <div v-if="addType === 'consultant'" style="margin-top: 10px;">
+          <label>绑定督导：</label>
+          <select v-model="newStaff.supervisorId">
+            <option disabled value="">请选择督导</option>
+            <option v-for="s in supervisorOptions" :key="s.supervisorId" :value="s.supervisorId">
+              {{ s.name }}（{{ s.professionalInfo || '无简介' }}）
+            </option>
+          </select>
+        </div>
+
         <div class="dialog-buttons">
           <button @click="submitNewStaff">提交</button>
           <button @click="closeDialog">取消</button>
@@ -51,12 +63,14 @@ export default {
   data() {
     return {
       staffList: [],
+      supervisorOptions: [], // 存储所有督导（用于绑定）
       showDialog: false,
       addType: '', // 'consultant' or 'supervisor'
       newStaff: {
         username: '',
         password: '',
         professionalInfo: '',
+        supervisorId: '' // 仅在新增咨询师时使用
       },
       token: localStorage.getItem('token') || '',
     }
@@ -67,12 +81,14 @@ export default {
   methods: {
     async fetchStaff() {
       try {
-        const consultantRes = await axios.get('http://localhost:8080/internal/admin/all-consultants', {
-          headers: { token: this.token }
-        })
-        const supervisorRes = await axios.get('http://localhost:8080/internal/admin/all-supervisors', {
-          headers: { token: this.token }
-        })
+        const [consultantRes, supervisorRes] = await Promise.all([
+          axios.get('http://localhost:8080/internal/admin/all-consultants', {
+            headers: { token: this.token }
+          }),
+          axios.get('http://localhost:8080/internal/admin/all-supervisors', {
+            headers: { token: this.token }
+          })
+        ])
 
         const consultants = consultantRes.data.data.map(item => ({
           id: item.consultantId,
@@ -83,12 +99,14 @@ export default {
 
         const supervisors = supervisorRes.data.data.map(item => ({
           id: item.supervisorId,
-          username: item.supervisorname,
+          username: item.name,
           professionalInfo: item.professionalInfo || '无',
           type: '督导',
         }))
 
         this.staffList = [...consultants, ...supervisors]
+        this.supervisorOptions = supervisorRes.data.data
+
       } catch (error) {
         console.error('获取职员列表失败', error)
       }
@@ -100,14 +118,15 @@ export default {
         username: '',
         password: '',
         professionalInfo: '',
+        supervisorId: ''
       }
     },
     closeDialog() {
       this.showDialog = false
     },
     async submitNewStaff() {
-      const usernameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9]+$/;  // 只允许中文、英文、数字
-      const passwordRegex = /^[a-zA-Z0-9]+$/;               // 只允许英文、数字
+      const usernameRegex = /^[\u4e00-\u9fa5a-zA-Z0-9]+$/;
+      const passwordRegex = /^[a-zA-Z0-9]+$/;
 
       if (!this.newStaff.username || !this.newStaff.password) {
         alert('用户名和密码不能为空')
@@ -124,6 +143,11 @@ export default {
         return
       }
 
+      if (this.addType === 'consultant' && !this.newStaff.supervisorId) {
+        alert('请为咨询师选择一个督导进行绑定')
+        return
+      }
+
       const url = this.addType === 'consultant'
         ? 'http://localhost:8080/internal/admin/consultant'
         : 'http://localhost:8080/internal/admin/supervisor'
@@ -132,6 +156,9 @@ export default {
       formData.append('username', this.newStaff.username)
       formData.append('password', this.newStaff.password)
       formData.append('professionalInfo', this.newStaff.professionalInfo)
+      if (this.addType === 'consultant') {
+        formData.append('supervisorId', this.newStaff.supervisorId)
+      }
 
       try {
         await axios.post(url, formData, {
@@ -200,7 +227,8 @@ th, td {
   border-radius: 8px;
   width: 300px;
 }
-.dialog input {
+.dialog input,
+.dialog select {
   width: 100%;
   margin: 8px 0;
   padding: 8px;

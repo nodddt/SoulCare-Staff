@@ -6,7 +6,7 @@
         @select="handleSelect"
       >
         <el-menu-item index="schedule">我的排班</el-menu-item>
-        <el-menu-item index="appointment">咨询</el-menu-item>
+        <el-menu-item index="appointment">预约/咨询</el-menu-item>
         <el-menu-item index="reviews">我的评价</el-menu-item>
         <el-menu-item index="messages">消息中心</el-menu-item>
       </el-menu>

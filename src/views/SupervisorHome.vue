@@ -11,7 +11,7 @@
 </template>
 
 <script>
-import Navbar from "@/components/supervisorNavbar.vue";
+import Navbar from "@/components/SupervisorNavbar.vue";
 import Sidebar from "@/components/SupervisorSidebar.vue";
 import Content from "@/components/SupervisorContent.vue";
 
