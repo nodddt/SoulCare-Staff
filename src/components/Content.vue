@@ -1,7 +1,8 @@
 <template>
   <div class="content-container">
     <MySchedule v-if="activeTab === 'schedule'" />
-    <Appointment v-if="activeTab === 'appointment'"/>
+    <Book v-if="activeTab === 'book'"/>
+    <Records v-if="activeTab === 'records'"/>
     <Messages v-if="activeTab === 'messages'"/>
     <Reviews v-if="activeTab === 'reviews'"/>
   </div>
@@ -9,8 +10,8 @@
 
 <script>
 import MySchedule from "@/components/MySchedule.vue";
-import Appointment from "@/components/Appointment.vue";
-import Reviews from "@/components/Reviews.vue";
+import Book from "@/components/book.vue";
+import Records from "@/components/records.vue";
 import Messages from "@/components/Messages.vue";
 
 
@@ -20,8 +21,8 @@ export default {
   },
   components: {
     MySchedule,
-    Appointment,
-    Reviews,
+    Book,
+    Records,
     Messages
   }
 };

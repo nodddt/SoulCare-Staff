@@ -1,5 +1,7 @@
 <template>
-  <div>
+  <div class="leave-management">
+    <h2>请假记录管理</h2>
+
     <!-- 筛选条件 -->
     <el-form :inline="true" class="filter-form">
       <el-form-item label="申请时间">
@@ -11,47 +13,39 @@
           end-placeholder="结束日期"
         />
       </el-form-item>
-      <el-form-item label="审批状态">
-        <el-select v-model="filterStatus" placeholder="请选择">
-          <el-option label="全部" value="" />
-          <el-option label="未审批" value="pending" />
-          <el-option label="已通过" value="approved" />
-          <el-option label="已驳回" value="rejected" />
-        </el-select>
-      </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="filterRecords">筛选</el-button>
+        <el-button type="primary" style="background-color: #FFE4B5; color: #8B4513;" @click="filterRecords">
+          筛选
+        </el-button>
       </el-form-item>
     </el-form>
 
+
     <!-- 请假记录列表 -->
-    <el-table :data="filteredLeaves" style="width: 100%">
-      <el-table-column prop="consultantId" label="咨询师ID" width="120" />
-      <el-table-column prop="date" label="请假日期" width="120" />
-      <el-table-column prop="time" label="时间段" width="100" />
-      <el-table-column label="请假理由" width="120">
-        <template v-slot="scope">
-          <el-button type="text" @click="showReason(scope.row.cancellationReason)">查看</el-button>
-        </template>
-      </el-table-column>
-      <el-table-column prop="statusText" label="审批状态" width="120" />
-      <el-table-column label="操作" width="150">
-        <template v-slot="scope">
-          <el-button
-            type="primary"
-            size="small"
-            @click="openApprovalDialog(scope.row)"
-            v-if="scope.row.status === 'pending'"
-          >
-            审批
-          </el-button>
-          <span v-else>{{ scope.row.statusText }}</span>
-        </template>
-      </el-table-column>
-    </el-table>
+    <div class="leave-card-container">
+      <div class="leave-card" v-for="record in filteredLeaves" :key="record.scheduleId">
+        <p><strong>咨询师ID：</strong>{{ record.consultantId }}</p>
+        <p><strong>用户名：</strong>{{ record.username }}</p>
+        <p><strong>请假日期：</strong>{{ record.date }}</p>
+        <p><strong>时间段：</strong>{{ record.time }}</p>
+        <p><strong>请假理由：</strong>
+          <el-button type="text" @click="showReason(record.cancellationReason)">查看</el-button>
+        </p>
+        <p><strong>状态：</strong>{{ getStatusText(record.status) }}</p>
+
+        <el-button
+          type="primary"
+          size="small"
+          @click="openApprovalDialog(record)"
+          v-if="record.status === 'pending'"
+          style="background-color: #FFE4B5; border-color: #FFE4B5; color: #8B4513;">
+          审批
+        </el-button>
+      </div>
+    </div>
 
     <!-- 请假理由弹窗 -->
-    <el-dialog title="请假理由" :visible.sync="reasonDialogVisible">
+    <el-dialog title="请假理由" :visible.sync="reasonDialogVisible" center>
       <p>{{ selectedReason }}</p>
       <div style="text-align: right; margin-top: 20px;">
         <el-button type="primary" @click="reasonDialogVisible = false">关闭</el-button>
@@ -59,14 +53,19 @@
     </el-dialog>
 
     <!-- 审批弹窗 -->
-    <el-dialog title="审批请假申请" :visible.sync="approvalDialogVisible">
+    <el-dialog title="审批请假申请" :visible.sync="approvalDialogVisible" center>
       <p>请审批该咨询师的请假申请：</p>
       <el-radio-group v-model="approvalStatus">
         <el-radio label="approved">通过</el-radio>
         <el-radio label="rejected">驳回</el-radio>
       </el-radio-group>
       <div style="margin-top: 20px; text-align: right;">
-        <el-button type="primary" @click="submitApproval">确认</el-button>
+        <el-button 
+          type="primary" 
+          @click="submitApproval" 
+          style="background-color: #FFE4B5; border-color: #FFE4B5; color: #8B4513;">
+          确认
+        </el-button>
         <el-button @click="approvalDialogVisible = false">取消</el-button>
       </div>
     </el-dialog>
@@ -81,7 +80,6 @@ export default {
     return {
       leaveRecords: [],
       filterDate: null,
-      filterStatus: "",
       reasonDialogVisible: false,
       selectedReason: "",
       approvalDialogVisible: false,
@@ -91,40 +89,33 @@ export default {
   },
   computed: {
     filteredLeaves() {
-      return this.leaveRecords
-        .filter((record) => {
-          if (this.filterStatus && record.status !== this.filterStatus) return false;
-          if (this.filterDate) {
-            const [start, end] = this.filterDate;
-            const recordDate = new Date(record.date);
-            if (recordDate < start || recordDate > end) return false;
-          }
-          return true;
-        })
-        .map(record => ({
-          ...record,
-          statusText: this.getStatusText(record.status)
-        }));
+      return this.leaveRecords.filter((record) => {
+        if (this.filterDate) {
+          const [start, end] = this.filterDate;
+          const recordDate = new Date(record.date);
+          if (recordDate < start || recordDate > end) return false;
+        }
+        return true;
+      });
     }
   },
   methods: {
     async fetchLeaves() {
       try {
-        const response = await axios.get("http://localhost:8080/internal/admin/getLeaveList", {
-          headers: {
-            token: localStorage.getItem("token") || ""
-          }
-        });
+        const response = await axios.get("http://localhost:8080/internal/admin/getLeaveList");
         if (response.data.code === "1") {
-          // 注意后端返回的字段名
-          this.leaveRecords = response.data.data.map(item => ({
-            scheduleId: item.scheduleId,
-            consultantId: item.consultantId,
-            date: item.date,
-            time: item.time,
-            cancellationReason: item.cancellationReason,
-            status: "pending" // 默认是pending，后面审批后会改变
-          }));
+          this.leaveRecords = response.data.data.map((item) => {
+            const reasonMatch = item.note && item.note.match(/Reason:\s*(.*)$/);
+            return {
+              scheduleId: item.scheduleId,
+              consultantId: item.consultantId,
+              username: item.username,
+              date: item.availableDate,
+              time: `${item.startTime}:00 - ${item.endTime}:00`,
+              cancellationReason: reasonMatch ? reasonMatch[1] : "无理由",
+              status: "pending" // 默认状态
+            };
+          });
         } else {
           this.$message.error("请假数据获取失败：" + response.data.msg);
         }
@@ -133,7 +124,7 @@ export default {
       }
     },
     filterRecords() {
-      // computed 已自动处理
+      // 自动过滤，由 computed 处理
     },
     showReason(reason) {
       this.selectedReason = reason;
@@ -152,11 +143,6 @@ export default {
           {
             scheduleId: this.selectedLeave.scheduleId,
             isApproved: this.approvalStatus === "approved"
-          },
-          {
-            headers: {
-              token: localStorage.getItem("token") || ""
-            }
           }
         );
         if (res.data.code === "1") {
@@ -179,6 +165,9 @@ export default {
       return statusMap[status] || "未知状态";
     }
   },
+  created() {
+    axios.defaults.headers.common["token"] = localStorage.getItem("token") || "";
+  },
   mounted() {
     this.fetchLeaves();
   }
@@ -186,7 +175,78 @@ export default {
 </script>
 
 <style scoped>
+.leave-management {
+  padding: 20px;
+}
+
+/* 筛选区域整体 */
 .filter-form {
-  margin-bottom: 20px;
+  margin-bottom: 30px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 保持 el-form-item 的高度一致 */
+.filter-form .el-form-item {
+  margin-bottom: 0;
+}
+
+/* 日期选择器去掉蓝色边框 */
+.el-date-editor {
+  box-shadow: none !important;
+  border-color: #dcdfe6 !important;
+}
+.el-date-editor:focus,
+.el-date-editor.is-active,
+.el-date-editor input:focus {
+  outline: none;
+  border-color: #dcdfe6 !important;
+  box-shadow: none !important;
+}
+
+/* 筛选按钮样式统一高度 */
+.filter-form .el-button {
+  height: 40px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+}
+
+/* 卡片区域 */
+.leave-card-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  padding: 10px 0;
+}
+
+.leave-card {
+  background-color: white;
+  border: 1px solid #FFE4B5;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s ease;
+}
+
+.leave-card:hover {
+  transform: translateY(-2px);
+}
+
+.leave-card p {
+  margin: 6px 0;
+  font-size: 14px;
+}
+
+.el-button {
+  margin-top: 10px;
+}
+
+.el-dialog {
+  width: 500px;
 }
 </style>

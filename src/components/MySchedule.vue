@@ -15,12 +15,12 @@
     <div v-if="isCalendarView" class="calendar-view">
       <div v-for="n in firstDayOffset" :key="'empty'+n" class="day empty"></div>
       <div v-for="day in monthDays" :key="day.date"
-           :class="['day', { past: day.isPast }]" 
-           @click="showSchedule(day.date)">
-        <div v-if="day.morning" class="morning-slot"></div>
-        <div v-if="day.afternoon" class="afternoon-slot"></div>
-        {{ day.date }}
-      </div>
+        :class="['day', { past: day.isPast }]" 
+        @click="showSchedule(day.date)">
+      <div v-if="day.morning" class="morning-slot"></div>
+      <div v-if="day.afternoon" class="afternoon-slot"></div>
+      {{ parseDayNumber(day.date) }}
+    </div>
     </div>
 
     <!-- 列表视图 -->
@@ -79,7 +79,7 @@ export default {
       leaveReason: "",
       currentLeaveItem: null,
       consultantId: '', // 这里一开始是空
-      token:"",
+      token:localStorage.getItem('token'),
     };
   },
   created() {
@@ -94,6 +94,9 @@ export default {
   methods: {
     toggleView() {
       this.isCalendarView = !this.isCalendarView;
+    },
+    parseDayNumber(dateStr) {
+      return parseInt(dateStr.split('-')[2], 10); // 获取日期字符串中的“日”部分
     },
 
     showSchedule(date) {
@@ -115,30 +118,32 @@ export default {
     },
 
     loadSchedule() {
-      this.token = localStorage.getItem('token');
       this.consultantId = localStorage.getItem('consultantId');
       this.$axios.get('http://localhost:8080/internal/consultant/schedules', {
         params: { consultantId: this.consultantId },
         headers: {
-          Authorization: `Bearer ${this.token}`
+          token: this.token
         }
       }).then(response => {
-        if (response.data) {
-          const rawList = response.data;
+        if (response.data && response.data.code === "1") {
+          const rawList = response.data.data; // 这里要取 response.data.data
 
           this.scheduleList = rawList.map(item => ({
             date: item.availableDate,
-            time: item.startTime,
+            time: String(item.startTime),  // 保证是字符串"8"、"13"用于判断
             isCompleted: this.isPast(item.availableDate),
-            leaveApplied: item.leaveApplied || false // 若后端返回该字段
+            leaveApplied: false // 默认 false，如果后端未返回该字段
           }));
 
           this.generateMonthDays();
+        } else {
+          alert("获取排班失败：" + response.data.msg);
         }
       }).catch(error => {
         console.error("加载排班失败", error);
       });
     },
+
 
     submitLeave() {
       if (!this.leaveReason.trim()) {
@@ -180,7 +185,7 @@ export default {
       const daysInMonth = new Date(year, month + 1, 0).getDate();
 
       const firstDay = new Date(year, month, 1).getDay();
-      this.firstDayOffset = (firstDay + 6) % 7; // 让周一为一周的第一天
+      this.firstDayOffset = (firstDay + 6) % 7; // 让周一为第一天
 
       this.monthDays = [];
       for (let d = 1; d <= daysInMonth; d++) {
@@ -191,14 +196,17 @@ export default {
           morning: false,
           afternoon: false,
         };
+
         const schedules = this.scheduleList.filter(item => item.date === dateStr);
         for (const sch of schedules) {
           if (sch.time === '8') dayObj.morning = true;
           if (sch.time === '13') dayObj.afternoon = true;
         }
+
         this.monthDays.push(dayObj);
       }
     },
+
 
     isPast(dateStr) {
       const today = new Date();
