@@ -141,8 +141,9 @@ export default {
     },
 
     loadSchedule() {
+      alert(localStorage.getItem('token'));
       this.$axios.get('http://localhost:8080/internal/consultant/schedule', {
-        params: { consultantId: this.consultantId }
+        params: { consultantId: this.consultantId}
       }).then(response => {
         if (response.data) {
           const rawList = response.data;
