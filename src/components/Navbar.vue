@@ -37,6 +37,7 @@ export default {
           type: 'warning'
         }).then(() => {
           localStorage.clear();
+          this.$store.dispatch('disconnectWebSocket');  // 在组件销毁时断开 WebSocket 连接
           this.$router.push({ path: '/Consultantlogin' });
         }).catch(() => {
           // 用户取消登出

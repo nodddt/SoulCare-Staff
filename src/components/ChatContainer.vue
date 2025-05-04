@@ -9,6 +9,7 @@
         'system-message': msg.System  // 新增系统消息样式
       }"
     >
+    <div>{{ message }}</div>
       <message-bubble :message="msg" />
     </div>
   </div>

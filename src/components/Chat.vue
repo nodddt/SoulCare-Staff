@@ -6,12 +6,7 @@
         <div class="connection-status" :class="{ connected: isConnected }">
           ● {{ connectionStatusText }}
         </div>
-        <countdown-timer 
-          :initial-time="remainingTime"
-          :session-id="sessionId"
-          @time-up="handleTimeUp"
-          @tick="handleTick" 
-        />
+        <div class="timer">{{ formattedRemainingTime }}</div>
       </div>
       <button class="end-session-btn" @click="showConfirm = true">
         结束会话
@@ -24,11 +19,7 @@
     <ChatMessages @send-message="addMessage" />
 
     <!-- 历史记录侧边栏 -->
-    <history-sidebar 
-      v-model="sidebarVisible"
-      :history="chatHistory"
-      class="history-sidebar"
-    />
+    
 
     <!-- 结束会话确认对话框 -->
     <div v-if="showConfirm" class="confirm-dialog">
@@ -41,30 +32,7 @@
       </div>
     </div>
 
-    <!-- 评分弹窗 -->
-    <div v-if="showRatingDialog" class="confirm-dialog">
-      <div class="dialog-content">
-        <h3>请为本次会话打分</h3>
-        <div class="star-rating">
-          <span 
-            v-for="n in 5" 
-            :key="n" 
-            class="star" 
-            :class="{ filled: n <= rating }" 
-            @click="setRating(n)"
-          >★</span>
-        </div>
-        <textarea 
-          v-model="feedback" 
-          placeholder="留下你的评价（可选）" 
-          class="feedback-box"
-        ></textarea>
-        <div class="dialog-btns">
-          <button @click="submitRating">提交</button>
-          <button @click="showRatingDialog = false">取消</button>
-        </div>
-      </div>
-    </div>
+    
   </div>
 </template>
 
@@ -72,15 +40,11 @@
 import dayjs from 'dayjs'
 import ChatContainer from '@/components/ChatContainer'
 import ChatMessages from '@/components/ChatMessages'
-import CountdownTimer from '@/components/CountdownTimer'
-import HistorySidebar from '@/components/HistorySidebar'
 
 export default {
   components: {
     ChatContainer,
     ChatMessages,
-    CountdownTimer,
-    HistorySidebar
   },
   data() {
     return {
@@ -89,14 +53,16 @@ export default {
       sidebarVisible: false,
       showConfirm: false,
       showRatingDialog: false,
-      rating: 0,
       feedback: '',
       //sessionId: parseInt(this.$route.params.sessionId),
-      remainingTime: parseInt(localStorage.getItem(`countdown_${this.sessionId}`)) || 3600,
+      //remainingTime: parseInt(localStorage.getItem(`countdown_${this.sessionId}`)) || 3600,
       ws: null,
       reconnectAttempts: 0,
       maxReconnectAttempts: 5,
-      isConnected: false
+      isConnected: false,
+      starttime:this.$route.query.appointmentDate,
+      remainingTime: 0,
+      countdownInterval: null
     }
   },
   computed: {
@@ -107,6 +73,12 @@ export default {
     },
     connectionStatusText() {
       return this.isConnected ? '已连接' : '连接中...'
+    },
+    formattedRemainingTime() {
+      // 将剩余时间转换为小时和分钟格式
+      const minutes = Math.floor(this.remainingTime / 60);
+      const seconds = this.remainingTime % 60;
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }
   },
   watch: {
@@ -119,12 +91,15 @@ export default {
     this.initializeWebSocket()
     window.addEventListener('beforeunload', this.handleBeforeUnload)
     window.addEventListener('beforeunload', this.confirmBeforeUnload)
-    this.fetchHistory()
+    this.fetchHistory(),
+    this.calculateRemainingTime();
+    this.startCountdown();
   },
   beforeDestroy() {
     this.cleanupWebSocket()
     window.removeEventListener('beforeunload', this.handleBeforeUnload)
     window.removeEventListener('beforeunload', this.confirmBeforeUnload)
+    clearInterval(this.countdownInterval);  // 清除倒计时
   },
   methods: {
     async initializeWebSocket() {
@@ -141,13 +116,13 @@ export default {
 
     setupWebSocketHandlers() {
       this.ws.onopen = () => {
-        //alert('WebSocket connected')
+        alert('WebSocket connected')
         this.isConnected = true
         this.reconnectAttempts = 0
       }
 
       this.ws.onmessage = (event) => {
-        //alert('onmessage')
+        alert('onmessage')
         const response = JSON.parse(event.data)
         this.handleIncomingMessage(response)
       }
@@ -179,14 +154,14 @@ export default {
 
     handleIncomingMessage(response) {
       const newMessage = {
-        from: response.isSystem ? 'system' : 'bot',
+        from: response.system? 'system' : 'consultant',
         text: response.msg,
         time: dayjs(response.time).format('HH:mm:ss'),
         status: 'received'
       }
+      //alert(response.system)
       this.messages.push(newMessage)
     },
-
     async addMessage(content) {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
         alert('连接尚未建立，请稍后再试')
@@ -238,6 +213,22 @@ export default {
         //console.error('加载历史消息失败:', error)
       }
     },
+    calculateRemainingTime() {
+      const startTime = dayjs(this.starttime);
+      const endTime = startTime.add(1, 'hour');
+      this.remainingTime = endTime.diff(dayjs(), 'seconds');
+    },
+
+    startCountdown() {
+      this.countdownInterval = setInterval(() => {
+        if (this.remainingTime <= 0) {
+          clearInterval(this.countdownInterval);
+          this.handleTimeUp();
+        } else {
+          this.remainingTime--;
+        }
+      }, 1000);
+    },
 
     handleTick(remaining) {
       localStorage.setItem(`countdown_${this.sessionId}`, remaining)
@@ -253,15 +244,6 @@ export default {
     handleShowRating() {
       this.showConfirm = false
       this.showRatingDialog = true
-    },
-
-    setRating(n) {
-      this.rating = n
-    },
-
-    submitRating() {
-      // 这里添加提交评分到后端的逻辑
-      //console.log('提交评分:', this.rating, '评价:', this.feedback)
       this.cleanupSession()
     },
 
@@ -285,6 +267,7 @@ export default {
   flex-direction: column;
   height: 100vh;
   position: relative;
+  background-color: #f1eaa6;
 }
 
 .chat-header {

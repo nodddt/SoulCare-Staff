@@ -38,7 +38,11 @@ const routes=[
         path:'/Consultantlogin',
         name:'ConsultantLogin',
         component:()=>import("../views/ConsultantLogin.vue")
-     },
+     }, {
+        path: '/chat/:appointmentId',
+        name: 'Chat',
+        component:()=>import("../components/Chat.vue")
+    },
     
 ];
 

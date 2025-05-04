@@ -145,6 +145,10 @@ export default {
                     localStorage.setItem('token', token);
                     localStorage.setItem('userType', userType);
                     this.$router.push('/consultantHome');
+                    this.$store.dispatch('disconnectWebSocket');  // 在组件销毁时断开 WebSocket 连接
+                    //this.$store.dispatch('loadMessagesFromLocalStorage');
+                    alert(token);
+                    this.$store.dispatch('connectWebSocket', token);
                 } else {
                     alert(response.data.msg);
                 }

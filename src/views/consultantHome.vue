@@ -23,9 +23,13 @@ export default {
   },
   data() {
     return {
+      token:localStorage.getItem("token"),
       currentTab: "schedule"
     };
   },
+  // mounted(){
+  //   this.$store.dispatch('connectWebSocket', this.token);
+  // },
   methods: {
     handleMenuChange(tab) {
       this.currentTab = tab;

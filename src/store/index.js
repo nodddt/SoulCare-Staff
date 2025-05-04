@@ -1,7 +1,7 @@
 // store/index.js
 import Vue from 'vue';
 import Vuex from 'vuex';
-
+import websocket from './websocket'
 Vue.use(Vuex);
 
 export default new Vuex.Store({
@@ -56,4 +56,7 @@ export default new Vuex.Store({
       return state.activeMenu;
     },
   },
+  modules: {
+    websocket // 将 websocket 模块添加到 modules 中
+  }
 });
