@@ -1,60 +1,69 @@
 <template>
-  <div class="messages-container">
-    <!-- 左侧消息列表 -->
-    <div class="sidebar">
-      <div 
-        v-for="contact in contacts" 
-        :key="contact.id" 
-        class="contact-item" 
-        :class="{ active: activeContact && activeContact.id === contact.id }"
-        @click="selectContact(contact)">
-        <div class="contact-name">{{ contact.name }}</div>
-        <div class="last-message">{{ getLastMessage(contact) }}</div>
-      </div>
-    </div>
-    
-    <!-- 右侧聊天窗口 -->
-    <div class="chat-window" v-if="activeContact">
-      <div class="chat-messages">
-        <div 
-          v-for="(message, index) in activeContact.messages" 
-          :key="index" 
-          :class="['message', message.sender === 'me' ? 'sent' : 'received']">
-          {{ message.text }}
+  <div>
+    <div v-if="messages.length > 0">
+      <div
+  v-for="message in messages"
+  :key="message.time"
+  :class="['message-box', messageTypeClass(message.type)]"
+>
+        <div v-if="message.type === 0">{{ message.msg }}</div>
+        <div v-if="message.type === 1">
+          {{ message.msg }} (预约ID: {{ message.data && message.data.appointmentId }})
+        </div>
+        <div v-if="message.type === 2" @click="goToSession(message.data.sessionId,message.data.time)" class="message-box clickable">
+          {{ message.msg }}，点击进入 (会话ID: {{ message.data && message.data.sessionId }})
         </div>
       </div>
-      <div class="chat-input">
-        <input v-model="newMessage" @keyup.enter="sendMessage" placeholder="输入消息..." />
-        <button @click="sendMessage">发送</button>
-      </div>
+    </div>
+    <div v-else>
+      <p>没有新的消息</p>
     </div>
   </div>
 </template>
+
 
 <script>
 export default {
   data() {
     return {
-      contacts: [
-        { id: 1, name: '管理员1', messages: [
-          { sender: 'them', text: '请检查本月报告' },
-          { sender: 'me', text: '好的，我会查看。' }
-        ] },
-        { id: 3, name: '管理员2', messages: [
-          { sender: 'them', text: '4-16上午排班请假审批已通过' },
-        ] },
-        { id: 2, name: '督导1', messages: [
-          { sender: 'them', text: '有时间开个会吗？' },
-          { sender: 'me', text: '可以的，明天上午合适吗？' }
-        ] }
-      ],
+
       activeContact: null,
       newMessage: ''
     };
   },
+  computed: {
+    messages() {
+      return this.$store.getters.getMessages;  // 获取存储的消息
+    }
+  },
   methods: {
+    messageTypeClass(type) {
+    switch (type) {
+      case 0: return 'type-0';
+      case 1: return 'type-1';
+      case 2: return 'type-2';
+      default: return '';
+    }
+  },
     selectContact(contact) {
       this.activeContact = contact;
+    },
+    goToSession(sessionId,time) {
+      // 假设你有一个名为 'sessionDetail' 的路由，并且它接受一个参数 'id'
+      const id = sessionId;
+      alert(id); // 调试信息，可以移除或替换为日志记录
+      const chatUrl = this.$router.resolve({
+        path: `/chat/${id}`,
+        query: {
+          consultantId: this.consultantId,
+          consultantName: this.consultantName,
+          appointmentDate: time,
+          sessionId:id,
+        },
+      }).href;
+
+      window.open(chatUrl, '_blank');
+      this.agreeProtocol = false; // 重置协议状态
     },
     sendMessage() {
       if (this.newMessage.trim() && this.activeContact) {
@@ -75,77 +84,33 @@ export default {
 </script>
 
 <style scoped>
-.messages-container {
-  display: flex;
-  height: 100vh;
-}
-.sidebar {
-  width: 250px;
-  background: #f4f4f4;
-  border-right: 1px solid #ddd;
-  overflow-y: auto;
-}
-.contact-item {
-  padding: 15px;
-  border-bottom: 1px solid #ddd;
+.clickable {
   cursor: pointer;
+  /* 可选：增加悬停时的背景颜色变化 */
+  &:hover {
+    background-color: #a4e2bb; /* 或者任何你喜欢的颜色 */
+  }
 }
-.contact-item.active {
-  background: #8B4513;
-  color: white;
+.message-box {
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 8px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  word-break: break-word;
 }
-.contact-name {
-  font-weight: bold;
+
+.type-0 {
+  background-color: #e6f7ff;
+  color: #004080;
 }
-.last-message {
-  font-size: 14px;
-  color: gray;
+
+.type-1 {
+  background-color: #fffbe5;
+  color: #665100;
 }
-.chat-window {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-.chat-messages {
-  flex: 1;
-  padding: 15px;
-  overflow-y: auto;
-  background: #fff;
-  display: flex;
-  flex-direction: column;
-}
-.message {
-  padding: 10px;
-  margin: 5px 0;
-  border-radius: 10px;
-  max-width: 70%;
-  word-wrap: break-word;
-}
-.sent {
-  background: #8B4513;
-  color: white;
-  align-self: flex-end;
-}
-.received {
-  background: #eee;
-  align-self: flex-start;
-}
-.chat-input {
-  display: flex;
-  padding: 10px;
-  border-top: 1px solid #ddd;
-  background: #fff;
-}
-.chat-input input {
-  flex: 1;
-  padding: 10px;
-  border: 1px solid #ddd;
-}
-.chat-input button {
-  background: #8B4513;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  cursor: pointer;
+
+.type-2 {
+  background-color: #f2ffef;
+  color: #005a00;
 }
 </style>

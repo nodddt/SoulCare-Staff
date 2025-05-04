@@ -1,234 +1,150 @@
 <template>
-  <div class="schedule-management">
+  <div class="schedule-container">
     <h2>督导排班管理</h2>
-    <div class="schedule-grid">
-      <div
+    <div class="grid">
+      <button
         v-for="(slot, index) in timeSlots"
         :key="index"
-        class="time-slot"
-        @click="selectSlot(slot)"
+        @click="openScheduleDialog(slot)"
       >
-        {{ slot.day }} - {{ slot.time }}
-      </div>
+        {{ slot.label }}
+      </button>
     </div>
 
-    <div v-if="selectedSlot" class="slot-details">
-      <h3>{{ selectedSlot.day }} - {{ selectedSlot.time }} 的排班</h3>
+    <!-- 弹窗：展示已排班督导 + 可添加列表 -->
+    <div v-if="showDialog" class="dialog">
+      <h3>{{ currentSlot.label }} 已排班督导</h3>
       <ul>
-        <li
-          v-for="supervisor in getScheduledSupervisors(selectedSlot)"
-          :key="supervisor.supervisorId"
-        >
-          {{ supervisor.username }}
-          <button @click="removeSchedule(supervisor.supervisorId)">删除</button>
+        <li v-for="s in scheduledSupervisors" :key="s.supervisorId">
+          {{ s.name }}
         </li>
       </ul>
 
-      <h4>添加排班</h4>
-      <select v-model="selectedSupervisorToAdd">
-        <option disabled value="">请选择督导</option>
-        <option
-          v-for="supervisor in getUnscheduledSupervisors(selectedSlot)"
-          :key="supervisor.supervisorId"
-          :value="supervisor.supervisorId"
-        >
-          {{ supervisor.username }}
-        </option>
-      </select>
-      <button @click="addSchedule">添加</button>
+      <h3>增加排班</h3>
+      <div v-for="sup in availableSupervisors" :key="sup.supervisorId">
+        <input
+          type="checkbox"
+          :value="sup.supervisorId"
+          v-model="selectedSupervisors"
+        />
+        {{ sup.name }}
+      </div>
+
+      <button @click="submitSchedule">确定排班</button>
+      <button @click="closeDialog">取消</button>
     </div>
   </div>
 </template>
-
 <script>
-import axios from 'axios';
+import axios from "axios";
 
 export default {
-  name: 'ScheduleManagementS',
   data() {
     return {
-      timeSlots: [],
-      selectedSlot: null,
-      schedules: [],
-      supervisors: [],
-      selectedSupervisorToAdd: '',
+      token: localStorage.getItem("token"), // 你可以根据实际方式获取 token
+      timeSlots: [
+        { label: "周一上午", day: "Monday", time:"AM" },       
+        { label: "周二上午", day: "Tuesday", time:"AM" },       
+        { label: "周三上午", day: "Wednesday", time:"AM" },       
+        { label: "周四上午", day: "Thursday", time:"AM" }, 
+        { label: "周五上午", day: "Friday", time:"AM" },       
+        { label: "周六上午", day: "Saturday", time:"AM" },
+        { label: "周日上午", day: "Sunday", time:"AM" },
+        { label: "周一下午", day: "Monday", time:"PM" },
+        { label: "周二下午", day: "Tuesday", time:"PM" },
+        { label: "周三下午", day: "Wednesday", time:"PM" },
+        { label: "周四下午", day: "Thursday", time:"PM" },
+        { label: "周五下午", day: "Friday", time:"PM" },
+        { label: "周六下午", day: "Saturday", time:"PM" },
+        { label: "周日下午", day: "Sunday", time:"PM" },
+      ],
+      showDialog: false,
+      currentSlot: null,
+      allSupervisors: [],
+      scheduledSupervisors: [], // 示例：从后端获取已排班内容
+      selectedSupervisors: [],
     };
   },
-  created() {
-    const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-    const times = ['上午', '下午'];
-    for (const day of days) {
-      for (const time of times) {
-        this.timeSlots.push({ day, time });
-      }
-    }
-  },
-  mounted() {
-    this.fetchSupervisors();
-    this.fetchSchedules();
+  computed: {
+    availableSupervisors() {
+      const scheduledIds = this.scheduledSupervisors.map((s) => s.supervisorId);
+      return this.allSupervisors.filter((sup) => !scheduledIds.includes(sup.supervisorId));
+    },
   },
   methods: {
-    async fetchSupervisors() {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:8080/internal/admin/all-supervisors', {
-          headers: { token },
-        });
-        if (res.data.code === 1) {
-          this.supervisors = res.data.data;
-        } else {
-          alert('获取督导列表失败');
-        }
-      } catch (err) {
-        console.error(err);
-        alert('获取督导出错');
-      }
-    },
-    async fetchSchedules() {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:8080/internal/admin/schedule/supervisor', {
-          headers: { token },
-        });
-        if (res.data.code === 1) {
-          this.schedules = res.data.data;
-        } else {
-          alert('获取排班失败');
-        }
-      } catch (err) {
-        console.error(err);
-        alert('获取排班出错');
-      }
-    },
-    selectSlot(slot) {
-      this.selectedSlot = slot;
-      this.selectedSupervisorToAdd = '';
-    },
-    getScheduledSupervisors(slot) {
-      const filtered = this.schedules.filter(
-        (s) => s.day === slot.day && s.time === slot.time
-      );
-      return this.supervisors.filter((s) =>
-        filtered.some((sch) => sch.supervisorId === s.supervisorId)
-      );
-    },
-    getUnscheduledSupervisors(slot) {
-      const scheduledIds = this.schedules
-        .filter((s) => s.day === slot.day && s.time === slot.time)
-        .map((s) => s.supervisorId);
-      return this.supervisors.filter((s) => !scheduledIds.includes(s.supervisorId));
-    },
-    async addSchedule() {
-      if (!this.selectedSupervisorToAdd || !this.selectedSlot) return;
+    openScheduleDialog(slot) {
+      this.currentSlot = slot;
+      this.showDialog = true;
+      this.selectedSupervisors = [];
 
-      const newEntry = {
-        supervisorId: this.selectedSupervisorToAdd,
-        day: this.selectedSlot.day,
-        time: this.selectedSlot.time,
-      };
-
-      const updatedSchedules = [...this.schedules, newEntry];
-
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.post(
-          'http://localhost:8080/internal/admin/schedule/supervisor',
-          { schedule: updatedSchedules },
-          {
-            headers: {
-              token,
-              'Content-Type': 'application/json',
-            },
+      // 获取所有督导
+      axios
+        .get("http://localhost:8080/internal/admin/all-supervisors", {
+          headers: { token: this.token },
+        })
+        .then((res) => {
+          if (res.data.code === "1") {
+            this.allSupervisors = res.data.data;
           }
-        );
-        if (res.data.code === 1) {
-          this.schedules = res.data.data;
-          this.selectedSupervisorToAdd = '';
-        } else {
-          alert('添加排班失败：' + res.data.msg);
-        }
-      } catch (err) {
-        console.error(err);
-        alert('添加排班出错');
-      }
+        });
+
+      // TODO: 获取该时段已排班督导（如果有接口）
+      this.scheduledSupervisors = []; // 示例默认清空
     },
-    async removeSchedule(supervisorId) {
-      if (!this.selectedSlot) return;
+    submitSchedule() {
+      if (!this.selectedSupervisors.length) return;
 
-      const updatedSchedules = this.schedules.filter(
-        (s) =>
-          !(
-            s.supervisorId === supervisorId &&
-            s.day === this.selectedSlot.day &&
-            s.time === this.selectedSlot.time
-          )
-      );
+      const schedulePayload = this.selectedSupervisors.map((id) => ({
+        supervisorId: id,
+        day: this.currentSlot.day,
+        time: this.currentSlot.time,
+      }));
 
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.post(
-          'http://localhost:8080/internal/admin/schedule/supervisor',
-          { schedule: updatedSchedules },
-          {
-            headers: {
-              token,
-              'Content-Type': 'application/json',
-            },
+      axios
+        .post(
+          "http://localhost:8080/internal/admin/schedule/supervisor",
+          { schedule: schedulePayload },
+          { headers: { token: this.token } }
+        )
+        .then((res) => {
+          if (res.data.code === "1") {
+            alert("排班成功！");
+            this.closeDialog();
+          } else {
+            alert("排班失败：" + res.data.msg);
           }
-        );
-        if (res.data.code === 1) {
-          this.schedules = res.data.data;
-        } else {
-          alert('删除排班失败：' + res.data.msg);
-        }
-      } catch (err) {
-        console.error(err);
-        alert('删除排班出错');
-      }
+        });
+    },
+    closeDialog() {
+      this.showDialog = false;
+      this.currentSlot = null;
+      this.scheduledSupervisors = [];
     },
   },
 };
 </script>
-
 <style scoped>
-.schedule-management {
+.schedule-container {
   padding: 20px;
 }
-
-.schedule-grid {
+.grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 10px;
-  margin-bottom: 20px;
 }
-
-.time-slot {
-  background-color: #ffe4b5;
+button {
   padding: 10px;
-  text-align: center;
+  background-color: #ffe4b5;
+  border: 1px solid #8b4513;
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
 }
-.time-slot:hover {
-  background-color: #f0c97d;
-}
-
-.slot-details {
-  background: #f9f9f9;
-  padding: 15px;
+.dialog {
+  position: fixed;
+  top: 10%;
+  left: 20%;
+  width: 60%;
+  background: white;
   border: 1px solid #ccc;
-  border-radius: 8px;
-}
-
-.slot-details ul {
-  list-style: none;
-  padding: 0;
-}
-
-.slot-details li {
-  display: flex;
-  justify-content: space-between;
-  margin: 8px 0;
+  padding: 20px;
 }
 </style>

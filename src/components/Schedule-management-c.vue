@@ -1,233 +1,189 @@
 <template>
-  <div class="schedule-management">
+  <div class="schedule-container">
     <h2>咨询师排班管理</h2>
-    <div class="schedule-grid">
-      <div
-        v-for="(slot, index) in timeSlots"
-        :key="index"
-        class="time-slot"
-        @click="selectSlot(slot)"
-      >
-        {{ slot.day }} - {{ slot.time }}
-      </div>
+
+    <!-- 督导选择 -->
+    <div>
+      <label>选择督导：</label>
+      <select v-model="selectedSupervisorId" @change="fetchConsultantsBySupervisor">
+        <option disabled value="">请选择督导</option>
+        <option v-for="sup in supervisorList" :key="sup.supervisorId" :value="sup.supervisorId">
+          {{ sup.name }}
+        </option>
+      </select>
     </div>
 
-    <div v-if="selectedSlot" class="slot-details">
-      <h3>{{ selectedSlot.day }} - {{ selectedSlot.time }} 的排班</h3>
+    <!-- 时间段按钮 -->
+    <div class="grid" v-if="selectedSupervisorId">
+      <button
+        v-for="(slot, index) in timeSlots"
+        :key="index"
+        @click="openScheduleDialog(slot)"
+      >
+        {{ slot.label }}
+      </button>
+    </div>
+
+    <!-- 弹窗：展示已排班咨询师 + 可添加 -->
+    <div v-if="showDialog" class="dialog">
+      <h3>{{ currentSlot.label }} 已排班咨询师</h3>
       <ul>
-        <li v-for="consultant in getScheduledConsultants(selectedSlot)" :key="consultant.consultantId">
-          {{ consultant.username }}
-          <button @click="removeSchedule(consultant.consultantId)">删除</button>
+        <li v-for="s in scheduledConsultants" :key="s.consultantId">
+          {{ s.name }}
         </li>
       </ul>
 
-      <h4>添加排班</h4>
-      <select v-model="selectedConsultantToAdd">
-        <option disabled value="">请选择咨询师</option>
-        <option
-          v-for="consultant in getUnscheduledConsultants(selectedSlot)"
-          :key="consultant.consultantId"
-          :value="consultant.consultantId"
-        >
-          {{ consultant.username }}
-        </option>
-      </select>
-      <button @click="addSchedule">添加</button>
+      <h3>增加排班</h3>
+      <div v-for="sup in availableConsultants" :key="sup.consultantId">
+        <input
+          type="checkbox"
+          :value="sup.consultantId"
+          v-model="selectedConsultants"
+        />
+        {{ sup.name }}
+      </div>
+
+      <button @click="submitSchedule">确定排班</button>
+      <button @click="closeDialog">取消</button>
     </div>
   </div>
 </template>
 
 <script>
-import axios from 'axios';
+import axios from "axios";
 
 export default {
-  name: 'ScheduleManagementC',
   data() {
     return {
-      timeSlots: [],
-      selectedSlot: null,
-      schedules: [],
-      consultants: [],
-      selectedConsultantToAdd: '',
+      token: localStorage.getItem("token"),
+      timeSlots: [
+      { label: "周一上午", day: "Monday", time:"AM" },       
+      { label: "周二上午", day: "Tuesday", time:"AM" },       
+      { label: "周三上午", day: "Wednesday", time:"AM" },       
+      { label: "周四上午", day: "Thursday", time:"AM" }, 
+      { label: "周五上午", day: "Friday", time:"AM" },       
+      { label: "周六上午", day: "Saturday", time:"AM" },
+      { label: "周日上午", day: "Sunday", time:"AM" },
+      { label: "周一下午", day: "Monday", time:"PM" },
+      { label: "周二下午", day: "Tuesday", time:"PM" },
+      { label: "周三下午", day: "Wednesday", time:"PM" },
+      { label: "周四下午", day: "Thursday", time:"PM" },
+      { label: "周五下午", day: "Friday", time:"PM" },
+      { label: "周六下午", day: "Saturday", time:"PM" },
+      { label: "周日下午", day: "Sunday", time:"PM" },
+      ],
+      showDialog: false,
+      currentSlot: null,
+      supervisorList: [],
+      selectedSupervisorId: "",
+      allConsultants: [],
+      scheduledConsultants: [],
+      selectedConsultants: [],
     };
   },
-  created() {
-    const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-    const times = ['上午', '下午'];
-    this.timeSlots = [];
 
-    for (const day of days) {
-      for (const time of times) {
-        this.timeSlots.push({ day, time });
-      }
-    }
-  },
-  methods: {
-    async fetchConsultants() {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:8080/internal/admin/all-consultants', {
-          headers: { token },
-        });
-        if (res.data.code === 1) {
-          this.consultants = res.data.data;
-        } else {
-          alert('获取咨询师列表失败');
-        }
-      } catch (err) {
-        console.error(err);
-        alert('获取咨询师出错');
-      }
-    },
-    async fetchSchedules() {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:8080/internal/admin/schedule/consultant', {
-          headers: { token },
-        });
-        if (res.data.code === 1) {
-          this.schedules = res.data.data;
-        } else {
-          alert('获取排班失败');
-        }
-      } catch (err) {
-        console.error(err);
-        alert('获取排班出错');
-      }
-    },
-    selectSlot(slot) {
-      this.selectedSlot = slot;
-      this.selectedConsultantToAdd = '';
-    },
-    getScheduledConsultants(slot) {
-      const filtered = this.schedules.filter(
-        (s) => s.day === slot.day && s.time === slot.time
-      );
-      return this.consultants.filter((c) =>
-        filtered.some((s) => s.consultantId === c.consultantId)
-      );
-    },
-    getUnscheduledConsultants(slot) {
-      const scheduledIds = this.schedules
-        .filter((s) => s.day === slot.day && s.time === slot.time)
-        .map((s) => s.consultantId);
-      return this.consultants.filter((c) => !scheduledIds.includes(c.consultantId));
-    },
-    async addSchedule() {
-      if (!this.selectedConsultantToAdd || !this.selectedSlot) return;
-
-      const newEntry = {
-        consultantId: this.selectedConsultantToAdd,
-        day: this.selectedSlot.day,
-        time: this.selectedSlot.time,
-      };
-
-      const updatedSchedules = [...this.schedules, newEntry];
-
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.post(
-          'http://localhost:8080/internal/admin/schedule/consultant',
-          { schedule: updatedSchedules },
-          {
-            headers: {
-              token,
-              'Content-Type': 'application/json',
-            },
-          }
-        );
-        if (res.data.code === 1) {
-          this.schedules = res.data.data;
-          this.selectedConsultantToAdd = '';
-        } else {
-          alert('添加排班失败：' + res.data.msg);
-        }
-      } catch (err) {
-        console.error(err);
-        alert('添加排班出错');
-      }
-    },
-    async removeSchedule(consultantId) {
-      if (!this.selectedSlot) return;
-
-      const updatedSchedules = this.schedules.filter(
-        (s) =>
-          !(
-            s.consultantId === consultantId &&
-            s.day === this.selectedSlot.day &&
-            s.time === this.selectedSlot.time
-          )
-      );
-
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.post(
-          'http://localhost:8080/internal/admin/schedule/consultant',
-          { schedule: updatedSchedules },
-          {
-            headers: {
-              token,
-              'Content-Type': 'application/json',
-            },
-          }
-        );
-        if (res.data.code === 1) {
-          this.schedules = updatedSchedules;
-        } else {
-          alert('删除排班失败：' + res.data.msg);
-        }
-      } catch (err) {
-        console.error(err);
-        alert('删除排班出错');
-      }
+  computed: {
+    availableConsultants() {
+      const scheduledIds = this.scheduledConsultants.map((s) => s.consultantId);
+      return this.allConsultants.filter((sup) => !scheduledIds.includes(sup.consultantId));
     },
   },
   mounted() {
-    this.fetchConsultants();
-    this.fetchSchedules();
+    this.fetchSupervisors();
+  },
+  methods: {
+    // 初始化加载所有督导
+    fetchSupervisors() {
+      axios
+        .get("http://localhost:8080/internal/admin/all-supervisors", {
+          headers: { token: this.token },
+        })
+        .then((res) => {
+          if (res.data.code === "1") {
+            this.supervisorList = res.data.data;
+          }
+        });
+    },
+
+    // 根据督导 ID 获取咨询师
+    fetchConsultantsBySupervisor() {
+      if (!this.selectedSupervisorId) return;
+      axios
+        .get("http://localhost:8080/internal/admin/all-consultants", {
+          headers: { token: this.token },
+          params: { supervisorId: this.selectedSupervisorId },
+        })
+        .then((res) => {
+          if (res.data.code === "1") {
+            this.allConsultants = res.data.data;
+          }
+        });
+    },
+
+    openScheduleDialog(slot) {
+      this.currentSlot = slot;
+      this.showDialog = true;
+      this.selectedConsultants = [];
+
+      // TODO: 获取已排班咨询师列表（可在此处添加后端接口获取）
+      this.scheduledConsultants = []; // 示例默认清空
+    },
+
+    submitSchedule() {
+      if (!this.selectedConsultants.length) return;
+
+      const schedulePayload = this.selectedConsultants.map((id) => ({
+        consultantId: id,
+        day: this.currentSlot.day,
+        time: this.currentSlot.time,
+      }));
+
+      axios
+        .post(
+          "http://localhost:8080/internal/admin/schedule/consultant",
+          { schedule: schedulePayload },
+          { headers: { token: this.token } }
+        )
+        .then((res) => {
+          if (res.data.code === "1") {
+            alert("排班成功！");
+            this.closeDialog();
+          } else {
+            alert("排班失败：" + res.data.msg);
+          }
+        });
+    },
+
+    closeDialog() {
+      this.showDialog = false;
+      this.currentSlot = null;
+      this.scheduledConsultants = [];
+    },
   },
 };
 </script>
-
 <style scoped>
-.schedule-management {
+.schedule-container {
   padding: 20px;
 }
-
-.schedule-grid {
+.grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 10px;
-  margin-bottom: 20px;
 }
-
-.time-slot {
-  background-color: #ffe4b5;
+button {
   padding: 10px;
-  text-align: center;
+  background-color: #ffe4b5;
+  border: 1px solid #8b4513;
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
 }
-.time-slot:hover {
-  background-color: #f0c97d;
-}
-
-.slot-details {
-  background: #f9f9f9;
-  padding: 15px;
+.dialog {
+  position: fixed;
+  top: 10%;
+  left: 20%;
+  width: 60%;
+  background: white;
   border: 1px solid #ccc;
-  border-radius: 8px;
-}
-
-.slot-details ul {
-  list-style: none;
-  padding: 0;
-}
-
-.slot-details li {
-  display: flex;
-  justify-content: space-between;
-  margin: 8px 0;
+  padding: 20px;
 }
 </style>

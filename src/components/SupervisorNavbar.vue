@@ -10,7 +10,7 @@
         <el-button circle class="avatar-button">{{ supervisorname }}</el-button>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item command="logout">登出</el-dropdown-item>
+            <el-dropdown-item command="logout">退出</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>

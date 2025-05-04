@@ -79,6 +79,7 @@ export default {
       leaveReason: "",
       currentLeaveItem: null,
       consultantId: '', // 这里一开始是空
+      token:"",
     };
   },
   created() {
@@ -113,17 +114,49 @@ export default {
       this.showLeaveModal = true;
     },
 
+    loadSchedule() {
+      this.token = localStorage.getItem('token');
+      this.consultantId = localStorage.getItem('consultantId');
+      this.$axios.get('http://localhost:8080/internal/consultant/schedules', {
+        params: { consultantId: this.consultantId },
+        headers: {
+          Authorization: `Bearer ${this.token}`
+        }
+      }).then(response => {
+        if (response.data) {
+          const rawList = response.data;
+
+          this.scheduleList = rawList.map(item => ({
+            date: item.availableDate,
+            time: item.startTime,
+            isCompleted: this.isPast(item.availableDate),
+            leaveApplied: item.leaveApplied || false // 若后端返回该字段
+          }));
+
+          this.generateMonthDays();
+        }
+      }).catch(error => {
+        console.error("加载排班失败", error);
+      });
+    },
+
     submitLeave() {
       if (!this.leaveReason.trim()) {
         alert("请填写请假理由");
         return;
       }
-      // 【改动】提交请假
+
+      const token = localStorage.getItem('token');
+      this.consultantId = localStorage.getItem('consultantId');
       this.$axios.post('http://localhost:8080/internal/consultant/leave', {
         consultantId: this.consultantId,
         date: this.currentLeaveItem.date,
         time: this.currentLeaveItem.time,
         cancellationReason: this.leaveReason
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       }).then(response => {
         if (response.data.code === 1) {
           alert("请假申请已提交！");
@@ -138,26 +171,6 @@ export default {
 
       this.showLeaveModal = false;
       this.leaveReason = "";
-    },
-
-    loadSchedule() {
-      this.$axios.get('http://localhost:8080/internal/consultant/schedule', {
-        params: { consultantId: this.consultantId }
-      }).then(response => {
-        if (response.data) {
-          const rawList = response.data;
-
-          this.scheduleList = rawList.map(item => ({
-            date: item.availableDate,
-            time: item.startTime,
-            isCompleted: this.isPast(item.availableDate),
-          }));
-
-          this.generateMonthDays();
-        }
-      }).catch(error => {
-        console.error("加载排班失败", error);
-      });
     },
 
     generateMonthDays() {

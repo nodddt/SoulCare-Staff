@@ -1,22 +1,40 @@
 import router from "./index";
-import store from "@/store"; // 确保引入了 Vuex store
-//import {LoginState} from "../views/Login.vue"
+import store from "@/store"; // Ensure Vuex store is imported
 
-router.beforeEach((to,from,next)=>{
-    //将LoginState存储在浏览器内部空间里，这样刷新就不会导致回到登录界面
-    if(to.meta.isLogin){
-        let token= localStorage.getItem('LoginState');
-        if(token){
-            // 登录成功后将登录状态存储在本地存储中
-            store.commit('SET_ACTIVE_MENU', to.path);
-            next();
-        }else{
-            next({
-                name:'Login'
-            })
+router.beforeEach((to, from, next) => {
+    if (to.meta.isLogin) {
+        let loginState = localStorage.getItem('LoginState');
+        
+        if (loginState === 'true') {
+            let token = localStorage.getItem('token');
+            if (token) {
+                // Check for user type (consultant or admin)
+                let userType = localStorage.getItem('userType'); // We store the user type as a flag
+                
+                if (userType === 'consultant') {
+                    let consultantId = localStorage.getItem('consultantId');
+                    let consultantname = localStorage.getItem('consultantname');
+                    store.commit('SET_USER_INFO', { userId: consultantId, username: consultantname, token, userType });
+
+                } else if (userType === 'admin') {
+                    let adminId = localStorage.getItem('adminId');
+                    let adminname = localStorage.getItem('adminname');
+                    store.commit('SET_USER_INFO', { userId: adminId, username: adminname, token, userType });
+                }else if (userType === 'supervisor') {
+                    let supervisorId = localStorage.getItem('supervisorId');
+                    let supervisorname = localStorage.getItem('supervisorname');
+                    store.commit('SET_USER_INFO', { userId: supervisorId, username: supervisorname, token, userType });
+                }
+
+                store.commit('SET_ACTIVE_MENU', to.path);
+                next();
+            } else {
+                next({ name: 'Login' });
+            }
+        } else {
+            next({ name: 'Login' });
         }
-    }else{
+    } else {
         next();
     }
-
-})
+});

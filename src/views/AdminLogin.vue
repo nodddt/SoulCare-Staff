@@ -3,17 +3,17 @@
         <div class="left" ref="vantaRef" style="height: 100vh">
             <h1 style="color: #8B4513;width: 20%;">心研汇</h1>
         </div>
-        <div class="right">
+        <div class="right" @keydown.enter="submitForm('loginForm')">
                 <!-- 登录表单 -->
                 <el-form :model="loginForm" :rules="rules" ref="loginForm" status-icon label-width="90px">
                     <el-form-item label="ID" prop="account">
                         <el-input type="text" v-model="loginForm.account" />
                     </el-form-item>
                     <el-form-item label="密码" prop="password">
-                        <el-input type="password" v-model="loginForm.password"/>
+                        <el-input type="password" v-model="loginForm.password" show-password/>
                     </el-form-item>
                     <el-form-item>
-                        <el-button class="btn" @click="submitForm('loginForm')">登录</el-button>
+                        <el-button class="btn" @click="submitForm('loginForm')" type="submit">登录</el-button>
                     </el-form-item>
                 </el-form>
                 <div class="pic" >
@@ -137,8 +137,10 @@ export default {
                     const adminId = admin.adminId;
                     const adminname = admin.username;
                     const token = admin.token;
+                    const userType = 'admin';
+                    localStorage.setItem('userType', userType);
                     localStorage.setItem('LoginState', 'true');
-                    this.$store.dispatch('setUserInfo', { adminId, adminname });
+                    this.$store.dispatch('setUserInfo', { userId: adminId, username: adminname, token, userType });
                     localStorage.setItem('adminId', adminId);
                     localStorage.setItem('adminname', adminname);
                     localStorage.setItem('token', token);
