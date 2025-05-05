@@ -150,17 +150,16 @@ export default {
         alert("请填写请假理由");
         return;
       }
-
-      const token = localStorage.getItem('token');
+      const timeStr = this.currentLeaveItem.time === '8' ? 'AM' : 'PM';
       this.consultantId = localStorage.getItem('consultantId');
       this.$axios.post('http://localhost:8080/internal/consultant/leave', {
         consultantId: this.consultantId,
         date: this.currentLeaveItem.date,
-        time: this.currentLeaveItem.time,
+        time: timeStr,
         cancellationReason: this.leaveReason
       }, {
         headers: {
-          Authorization: `Bearer ${token}`
+          token: this.token
         }
       }).then(response => {
         if (response.data.code === 1) {
@@ -177,6 +176,7 @@ export default {
       this.showLeaveModal = false;
       this.leaveReason = "";
     },
+
 
     generateMonthDays() {
       const now = new Date();

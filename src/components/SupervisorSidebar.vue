@@ -6,8 +6,8 @@
       @select="handleSelect"
     >
       <el-menu-item index="schedule-view">我的排班</el-menu-item>
+      <el-menu-item index="conversation-records">求助记录</el-menu-item>
       <el-menu-item index="message-center">消息中心</el-menu-item>
-      <el-menu-item index="conversation-records">会话记录</el-menu-item>
     </el-menu>
   </div>
 </template>

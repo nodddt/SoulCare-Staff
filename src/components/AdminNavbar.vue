@@ -7,7 +7,7 @@
 
     <div class="profile">
       <el-dropdown @command="handleCommand">
-        <el-button circle class="avatar-button">{{ adminname }}</el-button>
+        <el-button class="avatar-button">{{ adminname }}</el-button>
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item command="logout">退出</el-dropdown-item>
@@ -84,9 +84,14 @@ export default {
 .avatar-button {
   color: #8B4513 !important;
   border-color: #8B4513 !important;
-  width: 50px;
-  height: 50px;
+  background-color: white;
   font-size: 14px;
-  text-align: center;
+  padding: 8px 16px;
+  border-radius: 25px;
+  min-width: 50px;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

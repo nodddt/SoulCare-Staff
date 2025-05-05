@@ -1,18 +1,19 @@
 <template>
   <div class="schedule-container">
-    <h2>咨询师排班管理</h2>
-
     <!-- 督导选择 -->
-    <div>
+    <div class="supervisor-select">
       <label>选择督导：</label>
       <select v-model="selectedSupervisorId" @change="fetchConsultantsBySupervisor">
         <option disabled value="">请选择督导</option>
-        <option v-for="sup in supervisorList" :key="sup.supervisorId" :value="sup.supervisorId">
+        <option
+          v-for="sup in supervisorList"
+          :key="sup.supervisorId"
+          :value="sup.supervisorId"
+        >
           {{ sup.name }}
         </option>
       </select>
     </div>
-
     <!-- 时间段按钮 -->
     <div class="grid" v-if="selectedSupervisorId">
       <button
@@ -26,7 +27,7 @@
 
     <!-- 弹窗：展示已排班咨询师 + 可添加 -->
     <div v-if="showDialog" class="dialog">
-      <h3>{{ currentSlot.label }} 已排班咨询师</h3>
+      <h1>{{ currentSlot.label }} </h1><!----已排班咨询师 -->
       <ul>
         <li v-for="s in scheduledConsultants" :key="s.consultantId">
           {{ s.name }}
@@ -34,12 +35,13 @@
       </ul>
 
       <h3>增加排班</h3>
-      <div v-for="sup in availableConsultants" :key="sup.consultantId">
-        <input
-          type="checkbox"
-          :value="sup.consultantId"
-          v-model="selectedConsultants"
-        />
+      <div
+        v-for="sup in availableConsultants"
+        :key="sup.consultantId"
+        class="consultant-item"
+        :class="{ selected: selectedConsultants.includes(sup.consultantId) }"
+        @click="toggleConsultantSelection(sup.consultantId)"
+      >
         {{ sup.name }}
       </div>
 
@@ -57,20 +59,20 @@ export default {
     return {
       token: localStorage.getItem("token"),
       timeSlots: [
-      { label: "周一上午", day: "Monday", time:"AM" },       
-      { label: "周二上午", day: "Tuesday", time:"AM" },       
-      { label: "周三上午", day: "Wednesday", time:"AM" },       
-      { label: "周四上午", day: "Thursday", time:"AM" }, 
-      { label: "周五上午", day: "Friday", time:"AM" },       
-      { label: "周六上午", day: "Saturday", time:"AM" },
-      { label: "周日上午", day: "Sunday", time:"AM" },
-      { label: "周一下午", day: "Monday", time:"PM" },
-      { label: "周二下午", day: "Tuesday", time:"PM" },
-      { label: "周三下午", day: "Wednesday", time:"PM" },
-      { label: "周四下午", day: "Thursday", time:"PM" },
-      { label: "周五下午", day: "Friday", time:"PM" },
-      { label: "周六下午", day: "Saturday", time:"PM" },
-      { label: "周日下午", day: "Sunday", time:"PM" },
+        { label: "周一上午", day: "Monday", time:"AM" },
+        { label: "周二上午", day: "Tuesday", time:"AM" },
+        { label: "周三上午", day: "Wednesday", time:"AM" },
+        { label: "周四上午", day: "Thursday", time:"AM" },
+        { label: "周五上午", day: "Friday", time:"AM" },
+        { label: "周六上午", day: "Saturday", time:"AM" },
+        { label: "周日上午", day: "Sunday", time:"AM" },
+        { label: "周一下午", day: "Monday", time:"PM" },
+        { label: "周二下午", day: "Tuesday", time:"PM" },
+        { label: "周三下午", day: "Wednesday", time:"PM" },
+        { label: "周四下午", day: "Thursday", time:"PM" },
+        { label: "周五下午", day: "Friday", time:"PM" },
+        { label: "周六下午", day: "Saturday", time:"PM" },
+        { label: "周日下午", day: "Sunday", time:"PM" },
       ],
       showDialog: false,
       currentSlot: null,
@@ -129,6 +131,15 @@ export default {
       this.scheduledConsultants = []; // 示例默认清空
     },
 
+    toggleConsultantSelection(consultantId) {
+      const index = this.selectedConsultants.indexOf(consultantId);
+      if (index === -1) {
+        this.selectedConsultants.push(consultantId);
+      } else {
+        this.selectedConsultants.splice(index, 1);
+      }
+    },
+
     submitSchedule() {
       if (!this.selectedConsultants.length) return;
 
@@ -162,28 +173,108 @@ export default {
   },
 };
 </script>
+
 <style scoped>
 .schedule-container {
-  padding: 20px;
+  padding: 24px;
+  border-radius: 12px;
+  font-family: "Helvetica Neue", sans-serif;
 }
+
+.schedule-container label {
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+select {
+  padding: 8px 16px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 24px; /* 原14px -> 更大 */
+  background-color: #fff;
+}
+.supervisor-select {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 10px;
+  gap: 15px;
+  margin-top: 180px;
 }
-button {
-  padding: 10px;
+
+.grid button {
+  padding: 16px 12px; /* 原10px，增高按钮 */
+  font-size: 30px;
   background-color: #ffe4b5;
   border: 1px solid #8b4513;
   border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s;
 }
+
+.grid button:hover {
+  background-color: #f4c97d;
+}
+
 .dialog {
   position: fixed;
   top: 10%;
   left: 20%;
   width: 60%;
+  max-height: 80vh; /* 限制最大高度 */
+  overflow-y: auto; /* 超出时可滚动 */
   background: white;
-  border: 1px solid #ccc;
-  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  padding: 24px;
+  z-index: 1001;
+}
+
+.dialog h3 {
+  font-size: 20px; /* 更加醒目 */
+}
+
+.dialog ul {
+  padding-left: 20px;
+  margin-bottom: 16px;
+  font-size: 16px; /* 调大显示已排班人名字体 */
+}
+
+.dialog button {
+  background-color: #8b4513;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  font-size: 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-right: 12px;
+  margin-top: 16px;
+  transition: background-color 0.3s;
+}
+
+.dialog button:hover {
+  background-color: #5c3317;
+}
+
+/* 咨询师选择样式 */
+.consultant-item {
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-bottom: 8px;
+}
+
+.consultant-item.selected {
+  background-color: rgba(255, 228, 181, 0.5); /* 浅黄色透明 */
+}
+
+.consultant-item:hover {
+  background-color: rgba(255, 228, 181, 0.7); /* 鼠标悬停时变色 */
 }
 </style>

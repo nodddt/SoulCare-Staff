@@ -57,16 +57,42 @@
         }
       },
       renderChart() {
-        const weeks = this.chartData.map(item => item.week_start)
+        const formatDate = (dateStr) => {
+          const date = new Date(dateStr)
+          const month = date.getMonth() + 1
+          const day = date.getDate()
+          return `${month}.${day}`
+        }
+
+        // 生成横坐标标签（本周、前1周、前2周...）
+        const labelMap = this.chartData.map((item, index, arr) => {
+          const diff = arr.length - 1 - index
+          return diff === 0 ? '本周' : `前${diff}周`
+        })
+
+        // 生成 tooltip 中的时间段 例如 4.1-4.7
+        const tooltipLabels = this.chartData.map(item => {
+          const startDate = new Date(item.week_start)
+          const endDate = new Date(startDate)
+          endDate.setDate(endDate.getDate() + 6) // 推算该周结束日期
+
+          return `${formatDate(startDate)}-${formatDate(endDate)}`
+        })
+
         const totals = this.chartData.map(item => item.total)
+
         const option = {
           tooltip: {
-            trigger: 'axis'
+            trigger: 'axis',
+            formatter: params => {
+              const index = params[0].dataIndex
+              return `${tooltipLabels[index]}<br/>${params[0].marker}${params[0].seriesName}：${params[0].data}`
+            }
           },
           xAxis: {
             type: 'category',
-            data: weeks,
-            axisLabel: { rotate: 45 }
+            data: labelMap,
+            axisLabel: { rotate: 0 }
           },
           yAxis: {
             type: 'value',
@@ -77,14 +103,21 @@
             type: 'line',
             smooth: true,
             name: '咨询人次',
-            areaStyle: {},
+            areaStyle: {
+              color: 'rgba(255, 228, 181, 0.3)' // 浅黄色
+            },
             lineStyle: {
+              color: '#8B4513'
+            },
+            itemStyle: {
               color: '#8B4513'
             }
           }]
         }
+
         this.chartInstance.setOption(option)
       }
+
     }
   }
   </script>
@@ -104,5 +137,38 @@
   .controls button {
     margin: 0 4px;
   }
+  .controls {
+  display: flex;
+  align-items: center; /* 垂直居中对齐 */
+  height: 32px; /* 保证文字和按钮在同一高度基准线上 */
+}
+
+
+.controls button {
+  background-color: #8B4513;
+  color: white;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.controls button:disabled {
+  background-color: #d3c3b2;
+  cursor: not-allowed;
+}
+
+.controls span {
+  margin: 0 10px;
+  font-weight: 700;
+  font-size:18px;
+  color: #8B4513;
+  line-height: 32px; /* 与按钮高度一致，确保文字垂直居中 */
+}
+
   </style>
   

@@ -31,7 +31,7 @@ export default {
 <style scoped>
 .content-container {
   position:absolute;
-  top:80px;
+  top:60px;
   left: 180px;
   right:0;
   bottom:0;

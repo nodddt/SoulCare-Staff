@@ -39,10 +39,10 @@ export default {
 <style scoped>
 .dashboard-container {
   display: flex;
-  flex-direction: column;
+  flex-direction:column;
   gap: 16px;
   padding: 16px;
-  background-color: #f5f5f5;
+  background-color: rgb(239, 239, 239);
 }
 
 .row {
@@ -56,7 +56,6 @@ export default {
   border-radius: 10px;
   flex: 1;
   min-height: 300px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .left-top, .left-bottom {
@@ -64,5 +63,10 @@ export default {
 }
 .right-top, .right-bottom {
   flex: 1;
+}
+.divider {
+  border: none;
+  border-top: 2px solid #ddd;
+  margin: 16px 0;
 }
 </style>

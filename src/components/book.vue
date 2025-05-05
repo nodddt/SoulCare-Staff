@@ -1,6 +1,5 @@
 <template>
   <div class="appointment-records">
-    <h2>预约记录查看</h2>
     <!-- 筛选条件 -->
     <el-form :inline="true" class="filter-form">
       <el-form-item label="预约时间">
@@ -13,7 +12,7 @@
         />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" style="background-color: #FFE4B5; color: #8B4513;" @click="fetchAppointments">
+        <el-button style="background-color: #FFE4B5; color: #8B4513;" @click="fetchAppointments">
           筛选
         </el-button>
       </el-form-item>
@@ -70,7 +69,7 @@ export default {
           params
         });
 
-        if (res.data.code === 1 || res.data.code === "1") {
+        if (res.data.code === "1") {
           this.appointments = (res.data.data || []).map(item => {
             return {
               appointmentId: item.appointmentId,
@@ -85,7 +84,11 @@ export default {
               cancellationReason: item.cancellationReason || "无理由"
             };
           });
-        } else {
+        } else if(res.data.code === "2"){
+          this.appointments = []
+          this.$message("无预约记录");
+        }
+        else {
           this.$message.error("获取预约记录失败：" + res.data.msg);
         }
       } catch (err) {
@@ -111,9 +114,25 @@ export default {
 </script>
 
 <style scoped>
+/* 加入全局样式 */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+#app {
+  height: 100%;
+  overflow: auto;
+}
+
 .appointment-records {
   padding: 20px;
+  min-height: 100%;
+  box-sizing: border-box;
 }
+
 
 /* 筛选区域 */
 .filter-form {

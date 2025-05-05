@@ -1,10 +1,12 @@
 <template>
-  <div class="monthly-total-box">
-    <h3>本月总咨询时长</h3>
+  <div class="outer-container">
+    <div class="monthly-total-box">
+    <h3 class="title">本月总咨询时长</h3>
     <div class="total-value">
-      <p>{{ sum }}</p>
-      <span>分钟</span>
+      <p class="number">{{ sum }}</p>
+      <span class="unit">分钟</span>
     </div>
+  </div>
   </div>
 </template>
 
@@ -15,11 +17,9 @@ export default {
   name: 'MonthlyConsultationTotal',
   data() {
     return {
-      sum:0,
-      token:''
+      sum: 0
     };
   },
-  
   methods: {
     async fetchTotal() {
       try {
@@ -45,16 +45,54 @@ export default {
 </script>
 
 <style scoped>
-.monthly-total-box {
-  padding: 16px;
-  background-color: #fff;
-  border-radius: 8px;
-  text-align: center;
+.outer-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
+
+.monthly-total-box {
+  padding: 24px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #fff8f0, #fce9d8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.outer-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 40px; /* 你想控制的顶部空隙 */
+}
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 16px;
+}
+
 .total-value {
-  font-size: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.number {
+  font-size: 48px;
   font-weight: bold;
   color: #8B4513;
-  margin-top: 12px;
+  margin: 0;
+  line-height: 1;
+}
+
+.unit {
+  margin-top: 6px;
+  font-size: 20px;
+  font-weight: bold;
+  color: #8B4513;
 }
 </style>

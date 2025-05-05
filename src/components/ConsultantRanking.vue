@@ -3,9 +3,9 @@
     <div class="header">
       <h3>本月咨询师咨询时长排名</h3>
       <div class="controls">
-        <button @click="prevPage" :disabled="currentPage === 1">⬅ 上一页</button>
+        <button @click="prevPage" :disabled="currentPage === 1">⬅</button>
         <span>第 {{ currentPage }} 页</span>
-        <button @click="nextPage" :disabled="currentPage >= totalPages">下一页 ➡</button>
+        <button @click="nextPage" :disabled="currentPage >= totalPages">➡</button>
       </div>
     </div>
     <div ref="chartContainer" class="chart" style="width: 100%; height: 300px;"></div>
@@ -65,10 +65,16 @@ export default {
     },
     renderChart() {
       const names = this.paginatedData.map(item => item.name)
-      const times = this.paginatedData.map(item => item.total_time)
+      const times = this.paginatedData.map(item => (item.total_time / 60).toFixed(1)) // 换算成小时
+
       const option = {
         tooltip: {
-          trigger: 'axis'
+          trigger: 'axis',
+          formatter: (params) => {
+            return params
+              .map(p => `${p.name}<br/>${p.seriesName}：${p.value} 小时`)
+              .join('<br/>')
+          }
         },
         xAxis: {
           type: 'category',
@@ -80,7 +86,7 @@ export default {
         },
         yAxis: {
           type: 'value',
-          name: '分钟'
+          name: '小时'
         },
         series: [{
           data: times,
@@ -119,7 +125,38 @@ export default {
   align-items: center;
   margin-bottom: 8px;
 }
-.controls button {
-  margin: 0 4px;
+.controls {
+  display: flex;
+  align-items: center;
+  height: 40px;
 }
+
+.controls button {
+  background-color: #8B4513;
+  color: #fff;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.controls span {
+  margin: 0 12px;
+  font-size: 18px;
+  font-weight:700;
+  color: #8B4513;
+  display: flex;
+  align-items: center;
+  height: 40px;
+}
+
 </style>
