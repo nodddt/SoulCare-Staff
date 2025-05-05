@@ -34,7 +34,7 @@ export default {
   top:60px;
   left: 180px;
   right:0;
-  bottom:0;
+  bottom:0px;
   padding: 20px;
   overflow: hidden;
   background-color: #fff; /* 确保内容区有背景，不会透到底层 */

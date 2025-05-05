@@ -133,7 +133,7 @@ export default {
     },
 
     openDetailDialog(sessionId) {
-      this.$axios.get("http://localhost:8080/user/session/history", {
+      this.$axios.get("http://localhost:8080/internal/session/history", {
         headers: { token: this.token },
         params: { sessionId: sessionId },
       }).then(res => {
