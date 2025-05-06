@@ -1,19 +1,21 @@
 <template>
   <div class="schedule-container">
     <div class="header">
-      <h2>{{ currentMonth }}月{{ currentMonthName }}</h2>
-      <button @click="toggleView">
-        切换至 {{ isCalendarView ? "列表" : "日历" }} 视图
-      </button>
-    </div>
+  <button @click="changeMonth(-1)">⬅</button>
+  <span class="month-label">{{ currentMonth }}月</span>
+  <button @click="changeMonth(1)">➡</button>
+</div>
+<div class="togglebutton">
+  <button @click="toggleView">
+    切换至 {{ isCalendarView ? "列表" : "日历" }} 视图
+  </button>
+</div>
     
     <!-- 日历视图 -->
-    <div v-if="isCalendarView" class="weekdays">
-      <div v-for="day in weekdays" :key="day" class="weekday">{{ day }}</div>
-    </div>
 
     <div v-if="isCalendarView" class="calendar-view">
-      <div v-for="n in firstDayOffset" :key="'empty'+n" class="day empty"></div>
+      <div v-for="day in weekdays" :key="day" class="weekday">{{ day }}</div>
+      <div v-for="n in firstDayOffset" :key="'empty' + n" class="day empty"></div>
       <div v-for="day in monthDays" :key="day.date"
         :class="['day', { past: day.isPast }]" 
         @click="showSchedule(day.date)">
@@ -35,9 +37,12 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(item, index) in scheduleList" :key="index">
+          <tr v-for="(item, index) in filteredScheduleList" :key="index">
             <td>{{ item.date }}</td>
-            <td>{{ item.time }}</td>
+            <td>
+              <span v-if="item.time==='8'">上午</span>
+              <span v-if="item.time==='13'">下午</span>
+            </td>
             <td>
               <span v-if="item.isCompleted" class="completed">✔</span>
               <span v-else class="pending">○</span>
@@ -80,8 +85,23 @@ export default {
       currentLeaveItem: null,
       consultantId: '', // 这里一开始是空
       token:localStorage.getItem('token'),
+      currentYear: new Date().getFullYear(),
+      currentMonth: new Date().getMonth() + 1, // 注意：1~12 月
+
     };
   },
+  computed: {
+  filteredScheduleList() {
+    return this.scheduleList.filter(item => {
+      const date = new Date(item.date);
+      return (
+        date.getFullYear() === this.currentYear &&
+        date.getMonth() + 1 === this.currentMonth
+      );
+    });
+  }
+},
+
   created() {
     this.consultantId = localStorage.getItem('consultantId');
     if (!this.consultantId) {
@@ -92,6 +112,19 @@ export default {
     }
   },
   methods: {
+    changeMonth(offset) {
+    let newMonth = this.currentMonth + offset;
+    if (newMonth < 1) {
+      this.currentMonth = 12;
+      this.currentYear--;
+    } else if (newMonth > 12) {
+      this.currentMonth = 1;
+      this.currentYear++;
+    } else {
+      this.currentMonth = newMonth;
+    }
+    this.generateMonthDays(); // 重新生成日历
+  },
     toggleView() {
       this.isCalendarView = !this.isCalendarView;
     },
@@ -179,33 +212,32 @@ export default {
 
 
     generateMonthDays() {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth();
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const year = this.currentYear;
+  const month = this.currentMonth - 1; // 注意 JavaScript 中月份是 0 开始的
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-      const firstDay = new Date(year, month, 1).getDay();
-      this.firstDayOffset = (firstDay + 6) % 7; // 让周一为第一天
+  const firstDay = new Date(year, month, 1).getDay();
+  this.firstDayOffset = (firstDay + 6) % 7; // 周一为第一天
 
-      this.monthDays = [];
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const dayObj = {
-          date: dateStr,
-          isPast: this.isPast(dateStr),
-          morning: false,
-          afternoon: false,
-        };
+  this.monthDays = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const dayObj = {
+      date: dateStr,
+      isPast: this.isPast(dateStr),
+      morning: false,
+      afternoon: false,
+    };
 
-        const schedules = this.scheduleList.filter(item => item.date === dateStr);
-        for (const sch of schedules) {
-          if (sch.time === '8') dayObj.morning = true;
-          if (sch.time === '13') dayObj.afternoon = true;
-        }
+    const schedules = this.scheduleList.filter(item => item.date === dateStr);
+    for (const sch of schedules) {
+      if (sch.time === '8') dayObj.morning = true;
+      if (sch.time === '13') dayObj.afternoon = true;
+    }
 
-        this.monthDays.push(dayObj);
-      }
-    },
+    this.monthDays.push(dayObj);
+  }
+},
 
 
     isPast(dateStr) {
@@ -240,18 +272,21 @@ button {
   border: none;
   cursor: pointer;
 }
-
-.weekdays {
-  display: grid;
+.weekday {
+  
   grid-template-columns: repeat(7, 1fr);
   gap: 5px;
   text-align: center;
   font-weight: bold;
-  color: #8B4513;
+  color: #8b4513;
   margin-bottom: 5px;
-  width: 100%;
 }
 
+.month-label{
+  font-size: 24px; /* 你可以根据需要调整，比如 18px、32px 等 */
+  font-weight: bold;
+  margin: 0 10px;
+}
 .weekdays div {
   display: flex;
   justify-content: center;
@@ -327,8 +362,47 @@ button {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: white;
-  padding: 20px;
+  background-color: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  width: 400px;
+  font-size: 18px;
+}
+
+.modal h3 {
+  font-size: 22px;
+  margin-bottom: 20px;
+  text-align: center;
+  color: #8B4513;
+}
+
+.modal textarea {
+  width: 100%;
+  height: 120px;
+  font-size: 16px;
+  padding: 10px;
+  resize: none;
   border: 1px solid #ccc;
+  border-radius: 8px;
+  box-sizing: border-box;
+  margin-bottom: 20px;
+}
+
+.modal button {
+  font-size: 16px;
+  padding: 10px 20px;
+  margin-right: 10px;
+  background-color: #8B4513;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.modal button:last-child {
+  background-color: #ccc;
+  color: black;
 }
 </style>

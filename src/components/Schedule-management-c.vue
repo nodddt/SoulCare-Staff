@@ -1,19 +1,18 @@
 <template>
   <div class="schedule-container">
+    <h2>咨询师排班管理</h2>
+
     <!-- 督导选择 -->
     <div class="supervisor-select">
       <label>选择督导：</label>
       <select v-model="selectedSupervisorId" @change="fetchConsultantsBySupervisor">
         <option disabled value="">请选择督导</option>
-        <option
-          v-for="sup in supervisorList"
-          :key="sup.supervisorId"
-          :value="sup.supervisorId"
-        >
+        <option v-for="sup in supervisorList" :key="sup.supervisorId" :value="sup.supervisorId">
           {{ sup.name }}
         </option>
       </select>
     </div>
+
     <!-- 时间段按钮 -->
     <div class="grid" v-if="selectedSupervisorId">
       <button
@@ -24,29 +23,37 @@
         {{ slot.label }}
       </button>
     </div>
-
+    
     <!-- 弹窗：展示已排班咨询师 + 可添加 -->
     <div v-if="showDialog" class="dialog">
-      <h1>{{ currentSlot.label }} </h1><!----已排班咨询师 -->
+      <h3>当前时段：{{ currentSlot.label }}</h3>
+      <h4>已排班咨询师</h4>
       <ul>
-        <li v-for="s in scheduledConsultants" :key="s.consultantId">
-          {{ s.name }}
+        <li v-for="(sup, index) in scheduledConsultants" :key="'scheduled-' + index">
+          {{ sup.name }}
+          <button @click="removeSchedule(sup)">删除</button>
         </li>
       </ul>
-
-      <h3>增加排班</h3>
+      <h4>增加排班</h4>
       <div
+        class="checkbox-line"
         v-for="sup in availableConsultants"
         :key="sup.consultantId"
-        class="consultant-item"
-        :class="{ selected: selectedConsultants.includes(sup.consultantId) }"
-        @click="toggleConsultantSelection(sup.consultantId)"
       >
-        {{ sup.name }}
+        <input
+          type="checkbox"
+          :value="sup.consultantId"
+          v-model="selectedConsultants"
+        />
+        <span>{{ sup.name }}</span>
       </div>
 
       <button @click="submitSchedule">确定排班</button>
       <button @click="closeDialog">取消</button>
+    </div>
+
+    <div class="background-effects">
+      <div class="warm-block" v-for="n in 10" :key="n" :style="blockStyle(n)"></div>
     </div>
   </div>
 </template>
@@ -59,20 +66,20 @@ export default {
     return {
       token: localStorage.getItem("token"),
       timeSlots: [
-        { label: "周一上午", day: "Monday", time:"AM" },
-        { label: "周二上午", day: "Tuesday", time:"AM" },
-        { label: "周三上午", day: "Wednesday", time:"AM" },
-        { label: "周四上午", day: "Thursday", time:"AM" },
-        { label: "周五上午", day: "Friday", time:"AM" },
-        { label: "周六上午", day: "Saturday", time:"AM" },
-        { label: "周日上午", day: "Sunday", time:"AM" },
-        { label: "周一下午", day: "Monday", time:"PM" },
-        { label: "周二下午", day: "Tuesday", time:"PM" },
-        { label: "周三下午", day: "Wednesday", time:"PM" },
-        { label: "周四下午", day: "Thursday", time:"PM" },
-        { label: "周五下午", day: "Friday", time:"PM" },
-        { label: "周六下午", day: "Saturday", time:"PM" },
-        { label: "周日下午", day: "Sunday", time:"PM" },
+        { label: "周一上午", day: "Monday", time: "AM" },
+        { label: "周二上午", day: "Tuesday", time: "AM" },
+        { label: "周三上午", day: "Wednesday", time: "AM" },
+        { label: "周四上午", day: "Thursday", time: "AM" },
+        { label: "周五上午", day: "Friday", time: "AM" },
+        { label: "周六上午", day: "Saturday", time: "AM" },
+        { label: "周日上午", day: "Sunday", time: "AM" },
+        { label: "周一下午", day: "Monday", time: "PM" },
+        { label: "周二下午", day: "Tuesday", time: "PM" },
+        { label: "周三下午", day: "Wednesday", time: "PM" },
+        { label: "周四下午", day: "Thursday", time: "PM" },
+        { label: "周五下午", day: "Friday", time: "PM" },
+        { label: "周六下午", day: "Saturday", time: "PM" },
+        { label: "周日下午", day: "Sunday", time: "PM" },
       ],
       showDialog: false,
       currentSlot: null,
@@ -90,11 +97,12 @@ export default {
       return this.allConsultants.filter((sup) => !scheduledIds.includes(sup.consultantId));
     },
   },
+
   mounted() {
     this.fetchSupervisors();
   },
+
   methods: {
-    // 初始化加载所有督导
     fetchSupervisors() {
       axios
         .get("http://localhost:8080/internal/admin/all-supervisors", {
@@ -107,9 +115,9 @@ export default {
         });
     },
 
-    // 根据督导 ID 获取咨询师
     fetchConsultantsBySupervisor() {
       if (!this.selectedSupervisorId) return;
+      // 获取当前选择督导的咨询师
       axios
         .get("http://localhost:8080/internal/admin/all-consultants", {
           headers: { token: this.token },
@@ -117,7 +125,7 @@ export default {
         })
         .then((res) => {
           if (res.data.code === "1") {
-            this.allConsultants = res.data.data;
+            this.allConsultants = res.data.data;  // 只保存该督导的咨询师列表
           }
         });
     },
@@ -126,28 +134,59 @@ export default {
       this.currentSlot = slot;
       this.showDialog = true;
       this.selectedConsultants = [];
-
-      // TODO: 获取已排班咨询师列表（可在此处添加后端接口获取）
-      this.scheduledConsultants = []; // 示例默认清空
+      // 获取已排班的咨询师
+      axios
+        .get("http://localhost:8080/internal/admin/schedule/consultant", {
+          headers: { token: this.token },
+          params: {
+            day: slot.day,
+            time: slot.time,
+          },
+        })
+        .then((res) => {
+          if (res.data.code === "1") {
+            this.scheduledConsultants = res.data.data.map((entry) => {
+              const [id, name] = entry.split(":");
+              return { consultantId: parseInt(id), name };
+            });
+          }
+        });
     },
 
-    toggleConsultantSelection(consultantId) {
-      const index = this.selectedConsultants.indexOf(consultantId);
-      if (index === -1) {
-        this.selectedConsultants.push(consultantId);
-      } else {
-        this.selectedConsultants.splice(index, 1);
-      }
+    removeSchedule(sup) {
+      axios
+        .delete("http://localhost:8080/internal/admin/schedule/consultant", {
+          headers: { token: this.token },
+          data: {
+            consultantId: sup.consultantId,
+            name: sup.name,
+            day: this.currentSlot.day,
+            time: this.currentSlot.time,
+          },
+        })
+        .then((res) => {
+          if (res.data.code === "1") {
+            this.scheduledConsultants = this.scheduledConsultants.filter(
+              (s) => s.consultantId !== sup.consultantId
+            );
+            alert("删除成功！");
+          } else {
+            alert("删除失败：" + res.data.msg);
+          }
+        });
     },
 
     submitSchedule() {
       if (!this.selectedConsultants.length) return;
-
-      const schedulePayload = this.selectedConsultants.map((id) => ({
-        consultantId: id,
-        day: this.currentSlot.day,
-        time: this.currentSlot.time,
-      }));
+      const schedulePayload = this.selectedConsultants.map((id) => {
+        const sup = this.allConsultants.find((s) => s.consultantId === id);
+        return {
+          consultantId: id,
+          name: sup ? sup.name : "",
+          day: this.currentSlot.day,
+          time: this.currentSlot.time,
+        };
+      });
 
       axios
         .post(
@@ -170,111 +209,160 @@ export default {
       this.currentSlot = null;
       this.scheduledConsultants = [];
     },
+
+    blockStyle(seed) {
+      const size = Math.random() * 200 + 100;
+      return {
+        width: `${size}px`,
+        height: `${size}px`,
+        borderRadius: `${Math.random() * 50}%`,
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        animationDelay: `${Math.random() * 5}s`,
+        animationDuration: `${10 + Math.random() * 10}s`,
+        clipPath: `polygon(${this.randomShape()})`,
+      };
+    },
+
+    randomShape() {
+      return Array(6).fill().map(() => `${Math.random() * 100}% ${Math.random() * 100}%`).join(", ");
+    },
   },
 };
 </script>
 
 <style scoped>
 .schedule-container {
+  max-width: 900px;
+  margin: 100px auto 0 auto;
   padding: 24px;
+  background-color: rgba(255, 250, 240, 0.9);
   border-radius: 12px;
-  font-family: "Helvetica Neue", sans-serif;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  position: relative;
+  z-index: 1;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 214, 153, 0.3);
 }
 
-.schedule-container label {
-  font-weight: bold;
+.schedule-container h2 {
+  margin-bottom: 20px;
+  font-size: 24px;
+  color: #444;
+  text-align: center;
+}
+
+.supervisor-select {
+  margin-bottom: 16px;
+}
+
+label {
+  font-weight: 500;
   margin-right: 8px;
 }
 
 select {
-  padding: 8px 16px;
+  padding: 6px 10px;
   border: 1px solid #ccc;
-  border-radius: 8px;
-  font-size: 24px; /* 原14px -> 更大 */
+  border-radius: 6px;
   background-color: #fff;
-}
-.supervisor-select {
-  position: absolute;
-  top: 24px;
-  left: 24px;
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 15px;
-  margin-top: 180px;
+  gap: 8px;
+  margin-top: 16px;
 }
 
-.grid button {
-  padding: 16px 12px; /* 原10px，增高按钮 */
-  font-size: 30px;
-  background-color: #ffe4b5;
-  border: 1px solid #8b4513;
+button {
+  padding: 8px 10px;
+  background: linear-gradient(145deg, #FFE4B5, #FFD495);
+  border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.1);
 }
-
-.grid button:hover {
-  background-color: #f4c97d;
+button:hover {
+  transform: translateY(-2px);
+  background-color: #f4c88b;
+  box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2);
 }
 
 .dialog {
   position: fixed;
-  top: 10%;
-  left: 20%;
-  width: 60%;
-  max-height: 80vh; /* 限制最大高度 */
-  overflow-y: auto; /* 超出时可滚动 */
-  background: white;
+  top: 50%;
+  left: 50%;
+  width: 480px;
+  max-height: 80vh;
+  overflow-y: auto;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(145deg, #fff, #fff8ee);
+  border: 1px solid #FFE4B5;
+  box-shadow: 0 8px 32px rgba(255, 193, 97, 0.2);
   border-radius: 12px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
   padding: 24px;
-  z-index: 1001;
+  z-index: 1000;
 }
 
 .dialog h3 {
-  font-size: 20px; /* 更加醒目 */
+  margin-bottom: 12px;
+  font-size: 18px;
+  color: #333;
 }
 
 .dialog ul {
-  padding-left: 20px;
-  margin-bottom: 16px;
-  font-size: 16px; /* 调大显示已排班人名字体 */
+  margin-bottom: 20px;
+  list-style: none;
+  padding-left: 0;
+}
+.dialog ul li {
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.checkbox-line {
+  display: flex;
+  align-items: center;
+  margin: 6px 0;
+}
+
+.checkbox-line input {
+  margin-right: 8px;
 }
 
 .dialog button {
-  background-color: #8b4513;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  font-size: 24px;
-  border-radius: 8px;
-  cursor: pointer;
+  margin-top: 12px;
   margin-right: 12px;
-  margin-top: 16px;
-  transition: background-color 0.3s;
+  background-color: #ffa07a;
+  color: white;
 }
-
 .dialog button:hover {
-  background-color: #5c3317;
+  background-color: #f47c57;
 }
 
-/* 咨询师选择样式 */
-.consultant-item {
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  margin-bottom: 8px;
+.background-effects {
+  position: absolute;
+  top: -200px;
+  left: 0;
+  z-index: -1;
+  width: 100%;
+  height: 200%;
+  pointer-events: none;
+  transform: scale(1.5);
+  opacity: 0.8;
 }
 
-.consultant-item.selected {
-  background-color: rgba(255, 228, 181, 0.5); /* 浅黄色透明 */
+.warm-block {
+  position: absolute;
+  background: rgba(255, 240, 174, 0.3);
+  animation: float 12s infinite linear;
 }
 
-.consultant-item:hover {
-  background-color: rgba(255, 228, 181, 0.7); /* 鼠标悬停时变色 */
+@keyframes float {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-200vh) rotate(360deg); }
 }
 </style>

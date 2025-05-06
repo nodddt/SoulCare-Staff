@@ -163,7 +163,6 @@ export default {
   gap: 24px; /* 可稍微增大间距 */
   grid-auto-rows: minmax(150px, auto);
   overflow-y: auto;
-  height: 100vh;
 }
 
 .message-card {
